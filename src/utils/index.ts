@@ -8,7 +8,186 @@ import type {
   PredictionResult,
   BestTimeSlot,
   DataCollectionProgress,
+  ChineseDateType,
+  ChineseDateInfo,
 } from "../types";
+
+// 中国节假日数据 (2024-2025年)
+const CHINESE_HOLIDAYS_DATA: Record<number, ChineseDateInfo[]> = {
+  2025: [
+    // 元旦 2025
+    { date: "2025-01-01", type: "holiday", name: "元旦", isOfficial: true },
+
+    // 春节 2025 (1月28日-2月3日放假，1月26日、2月8日上班)
+    {
+      date: "2025-01-26",
+      type: "makeup_workday",
+      name: "春节调休",
+      isOfficial: true,
+    },
+    { date: "2025-01-28", type: "holiday", name: "春节", isOfficial: true },
+    { date: "2025-01-29", type: "holiday", name: "春节", isOfficial: true },
+    { date: "2025-01-30", type: "holiday", name: "春节", isOfficial: true },
+    { date: "2025-01-31", type: "holiday", name: "春节", isOfficial: true },
+    { date: "2025-02-01", type: "holiday", name: "春节", isOfficial: true },
+    { date: "2025-02-02", type: "holiday", name: "春节", isOfficial: true },
+    { date: "2025-02-03", type: "holiday", name: "春节", isOfficial: true },
+    {
+      date: "2025-02-08",
+      type: "makeup_workday",
+      name: "春节调休",
+      isOfficial: true,
+    },
+
+    // 其他节假日待官方公布...
+  ],
+};
+
+// 简化的中国日历工具类 - 只保留核心功能
+export class ChineseCalendar {
+  private static holidayCache: Map<string, ChineseDateInfo> = new Map();
+
+  // 初始化节假日缓存
+  static initializeHolidayCache() {
+    this.holidayCache.clear();
+    Object.values(CHINESE_HOLIDAYS_DATA)
+      .flat()
+      .forEach((holiday) => {
+        this.holidayCache.set(holiday.date, holiday);
+      });
+  }
+
+  // 获取日期类型
+  static getDateType(date: Date): ChineseDateType {
+    const dateStr = this.formatDate(date);
+    const holiday = this.holidayCache.get(dateStr);
+
+    if (holiday) {
+      return holiday.type;
+    }
+
+    // 普通周末判断
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return "weekend";
+    }
+
+    // 默认工作日
+    return "workday";
+  }
+
+  // 获取日期信息
+  static getDateInfo(date: Date): ChineseDateInfo {
+    const dateStr = this.formatDate(date);
+    const holiday = this.holidayCache.get(dateStr);
+
+    if (holiday) {
+      return holiday;
+    }
+
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return {
+        date: dateStr,
+        type: "weekend",
+        name: dayOfWeek === 0 ? "周日" : "周六",
+        isOfficial: true,
+      };
+    }
+
+    return {
+      date: dateStr,
+      type: "workday",
+      name: this.getWeekdayName(dayOfWeek),
+      isOfficial: true,
+    };
+  }
+
+  // 获取日期类型的显示名称
+  static getDateTypeDisplayName(type: ChineseDateType): string {
+    switch (type) {
+      case "workday":
+        return "工作日";
+      case "weekend":
+        return "周末";
+      case "holiday":
+        return "节假日";
+      case "makeup_workday":
+        return "调休班";
+      case "compensatory_holiday":
+        return "调休假";
+      default:
+        return "普通日";
+    }
+  }
+
+  // 获取日期类型的样式类
+  static getDateTypeStyle(type: ChineseDateType): string {
+    switch (type) {
+      case "workday":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "weekend":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "holiday":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "makeup_workday":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "compensatory_holiday":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  }
+
+  // 获取日期类型的图标
+  static getDateTypeIcon(type: ChineseDateType): string {
+    switch (type) {
+      case "workday":
+        return "💼";
+      case "weekend":
+        return "🏠";
+      case "holiday":
+        return "🎉";
+      case "makeup_workday":
+        return "⚡";
+      case "compensatory_holiday":
+        return "🎈";
+      default:
+        return "📅";
+    }
+  }
+
+  private static formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  private static getWeekdayName(dayOfWeek: number): string {
+    const names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    return names[dayOfWeek];
+  }
+
+  // 判断是否为工作时间（考虑节假日）
+  static isWorkTime(date: Date): boolean {
+    const type = this.getDateType(date);
+    return type === "workday" || type === "makeup_workday";
+  }
+
+  // 判断是否为休息时间
+  static isRestTime(date: Date): boolean {
+    const type = this.getDateType(date);
+    return (
+      type === "weekend" ||
+      type === "holiday" ||
+      type === "compensatory_holiday"
+    );
+  }
+}
+
+// 初始化节假日缓存
+ChineseCalendar.initializeHolidayCache();
 
 // 时间段处理工具
 export class TimeSlotUtils {
@@ -154,13 +333,20 @@ export class TimeSlotUtils {
     return false;
   }
 
+  // 更新获取时间段上下文，集成中国节假日
   static getTimeSlotContext(date: Date): {
     isPeak: boolean;
     isWeekend: boolean;
+    isWorkTime: boolean;
     timeOfDay: "morning" | "afternoon" | "evening" | "night";
+    dateType: ChineseDateType;
+    dateInfo: ChineseDateInfo;
   } {
     const hour = date.getHours();
-    const weekday = date.getDay();
+    const dateInfo = ChineseCalendar.getDateInfo(date);
+    const dateType = dateInfo.type;
+    const isWorkTime = ChineseCalendar.isWorkTime(date);
+    const isRestTime = ChineseCalendar.isRestTime(date);
 
     let timeOfDay: "morning" | "afternoon" | "evening" | "night";
     if (hour >= 6 && hour < 12) timeOfDay = "morning";
@@ -168,10 +354,19 @@ export class TimeSlotUtils {
     else if (hour >= 18 && hour < 22) timeOfDay = "evening";
     else timeOfDay = "night";
 
+    // 高峰期判断：工作日的特定时间段
+    let isPeak = false;
+    if (isWorkTime) {
+      isPeak = (hour >= 9 && hour <= 11) || (hour >= 14 && hour <= 16);
+    }
+
     return {
-      isPeak: this.isPeakHour(date),
-      isWeekend: weekday === 0 || weekday === 6,
+      isPeak,
+      isWeekend: isRestTime,
+      isWorkTime,
       timeOfDay,
+      dateType,
+      dateInfo,
     };
   }
 }
@@ -851,5 +1046,157 @@ export class DataQualityUtils {
       default:
         return "text-gray-600 bg-gray-50 border-gray-200";
     }
+  }
+}
+
+// 性能优化工具类 - 基于requestAnimationFrame
+export class PerformanceUtils {
+  private static activeTimers: Map<string, number> = new Map();
+
+  // 基于rAF的定时器，替代setInterval
+  static createTimer(
+    callback: () => void,
+    interval: number,
+    timerId?: string
+  ): string {
+    const id = timerId || this.generateTimerId();
+    let lastTime = 0;
+
+    const tick = (currentTime: number) => {
+      if (currentTime - lastTime >= interval) {
+        callback();
+        lastTime = currentTime;
+      }
+
+      // 继续下一帧
+      const rafId = requestAnimationFrame(tick);
+      this.activeTimers.set(id, rafId);
+    };
+
+    // 启动第一帧
+    const rafId = requestAnimationFrame(tick);
+    this.activeTimers.set(id, rafId);
+
+    return id;
+  }
+
+  // 停止定时器
+  static clearTimer(timerId: string): void {
+    const rafId = this.activeTimers.get(timerId);
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      this.activeTimers.delete(timerId);
+    }
+  }
+
+  // 清理所有定时器
+  static clearAllTimers(): void {
+    this.activeTimers.forEach((rafId) => {
+      cancelAnimationFrame(rafId);
+    });
+    this.activeTimers.clear();
+  }
+
+  // 页面可见性检测的定时器 - 页面不可见时暂停
+  static createVisibilityAwareTimer(
+    callback: () => void,
+    interval: number,
+    timerId?: string
+  ): string {
+    const id = timerId || this.generateTimerId();
+    let lastTime = 0;
+    let isRunning = true;
+
+    // 监听页面可见性
+    const handleVisibilityChange = () => {
+      isRunning = !document.hidden;
+      if (isRunning) {
+        lastTime = 0; // 重置时间，避免累积延迟
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const tick = (currentTime: number) => {
+      if (isRunning && currentTime - lastTime >= interval) {
+        callback();
+        lastTime = currentTime;
+      }
+
+      // 继续下一帧
+      const rafId = requestAnimationFrame(tick);
+      this.activeTimers.set(id, rafId);
+    };
+
+    // 启动第一帧
+    const rafId = requestAnimationFrame(tick);
+    this.activeTimers.set(id, rafId);
+
+    // 存储清理函数
+    const originalClearTimer = this.clearTimer.bind(this);
+    this.clearTimer = (timerId: string) => {
+      if (timerId === id) {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+      }
+      originalClearTimer(timerId);
+    };
+
+    return id;
+  }
+
+  // 生成唯一定时器ID
+  private static generateTimerId(): string {
+    return `timer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  // 获取活跃定时器数量
+  static getActiveTimerCount(): number {
+    return this.activeTimers.size;
+  }
+
+  // 调试信息
+  static getDebugInfo(): {
+    activeTimers: number;
+    timerIds: string[];
+  } {
+    return {
+      activeTimers: this.activeTimers.size,
+      timerIds: Array.from(this.activeTimers.keys()),
+    };
+  }
+}
+
+// 组件卸载时的清理工具
+export class ComponentCleanup {
+  private timerIds: Set<string> = new Set();
+
+  // 注册定时器
+  registerTimer(timerId: string): void {
+    this.timerIds.add(timerId);
+  }
+
+  // 清理所有注册的定时器
+  cleanup(): void {
+    this.timerIds.forEach((timerId) => {
+      PerformanceUtils.clearTimer(timerId);
+    });
+    this.timerIds.clear();
+  }
+
+  // 创建并注册定时器
+  createTimer(
+    callback: () => void,
+    interval: number,
+    useVisibilityAware: boolean = true
+  ): string {
+    const timerId = useVisibilityAware
+      ? PerformanceUtils.createVisibilityAwareTimer(callback, interval)
+      : PerformanceUtils.createTimer(callback, interval);
+
+    this.registerTimer(timerId);
+    return timerId;
   }
 }

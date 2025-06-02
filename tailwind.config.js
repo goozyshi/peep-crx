@@ -5,6 +5,10 @@ export default {
     extend: {
       colors: {
         // 主色调 - 更高对比度
+        "google-blue": "var(--google-blue)",
+        "google-red": "var(--google-red)",
+        "google-yellow": "var(--google-yellow)",
+        "google-green": "var(--google-green)",
         primary: {
           50: "#eff6ff",
           100: "#dbeafe",

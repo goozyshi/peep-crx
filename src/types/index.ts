@@ -153,3 +153,26 @@ export interface DataCollectionProgress {
   qualityLevel: DataQuality["level"];
   recommendations: string[];
 }
+
+// 中国日期类型
+export type ChineseDateType =
+  | "workday" // 法定工作日
+  | "weekend" // 普通周末
+  | "holiday" // 法定节假日
+  | "makeup_workday" // 调休工作日（周末上班）
+  | "compensatory_holiday"; // 调休假日（工作日放假）
+
+// 日期信息
+export interface ChineseDateInfo {
+  date: string; // YYYY-MM-DD格式
+  type: ChineseDateType;
+  name?: string; // 节假日名称
+  isOfficial: boolean; // 是否为官方公布
+}
+
+// 节假日数据
+export interface HolidayData {
+  year: number;
+  holidays: ChineseDateInfo[];
+  lastUpdated: number;
+}

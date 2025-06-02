@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Peep",
-  "version": "0.0.1",
+  "name": "PeepCRX",
+  "version": "0.2.0",
+  "description": "智能洗手间空位预测助手",
   "action": {
-    "default_popup": "index.html"
+    "default_popup": "index.html",
+    "default_title": "PeepCRX - 智能预测"
   },
-  "permissions": ["storage", "tabs"]
+  "permissions": ["storage"]
 }

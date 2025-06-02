@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import RecordForm from "./components/RecordForm.vue";
 import PredictionView from "./components/PredictionView.vue";
 import LocationSetup from "./components/LocationSetup.vue";
-import { StorageManager } from "./utils";
-import type { Location } from "./types";
+import {
+  StorageManager,
+  ChineseCalendar,
+  ComponentCleanup,
+  PerformanceUtils,
+} from "./utils";
+import type { Location, ChineseDateType, ChineseDateInfo } from "./types";
 
 // 应用状态
 const isFirstTime = ref(true);
@@ -19,6 +24,13 @@ const totalRecords = ref(0);
 // 组件引用
 const recordFormRef = ref<InstanceType<typeof RecordForm>>();
 const predictionViewRef = ref<InstanceType<typeof PredictionView>>();
+
+// 节假日相关数据
+const upcomingHolidays = ref<ChineseDateInfo[]>([]);
+const currentMonthSpecialDates = ref<ChineseDateInfo[]>([]);
+
+// 性能优化 - 组件清理管理器
+const cleanup = new ComponentCleanup();
 
 // 计算属性
 const showMainInterface = computed(
@@ -134,7 +146,7 @@ const quickRecord = async (isFull: boolean) => {
     const toast = document.createElement("div");
     toast.textContent = message;
     toast.className =
-      "fixed top-3 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-xl shadow-xl z-50 font-medium text-sm";
+      "fixed top-3 left-1/2 transform -translate-x-1/2 bg-gray-900  px-4 py-2 rounded-xl shadow-xl z-50 font-medium text-sm";
     document.body.appendChild(toast);
 
     setTimeout(() => {
@@ -145,14 +157,76 @@ const quickRecord = async (isFull: boolean) => {
   }
 };
 
+// 计算预测精度
+const getPredictionAccuracy = () => {
+  if (totalRecords.value >= 100) return 95;
+  if (totalRecords.value >= 50) return 85;
+  if (totalRecords.value >= 30) return 75;
+  if (totalRecords.value >= 20) return 65;
+  if (totalRecords.value >= 10) return 55;
+  return 45;
+};
+
+// 加载节假日信息
+const loadHolidayInfo = () => {
+  upcomingHolidays.value = ChineseCalendar.getUpcomingHolidays(3);
+  currentMonthSpecialDates.value =
+    ChineseCalendar.getCurrentMonthSpecialDates();
+};
+
+// 定期更新节假日信息（每小时检查一次）
+const startHolidayInfoUpdater = () => {
+  cleanup.createTimer(
+    () => {
+      loadHolidayInfo();
+      console.log("节假日信息已更新");
+    },
+    3600000,
+    true
+  ); // 1小时 = 3600000ms
+};
+
+// 格式化节假日日期
+const formatHolidayDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("zh-CN", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+// 格式化特殊日期
+const formatSpecialDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.getDate() + "日";
+};
+
+// 获取日期类型图标
+const getDateTypeIcon = (type: ChineseDateType) => {
+  return ChineseCalendar.getDateTypeIcon(type);
+};
+
 onMounted(() => {
   checkFirstTime();
+  loadHolidayInfo();
+  startHolidayInfoUpdater();
+
+  // 输出性能调试信息
+  console.log("App组件已挂载");
+  console.log("性能工具调试信息:", PerformanceUtils.getDebugInfo());
+});
+
+// 组件卸载时清理
+onUnmounted(() => {
+  cleanup.cleanup();
+  PerformanceUtils.clearAllTimers();
+  console.log("App组件已卸载，所有定时器已清理");
 });
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-    <div class="container mx-auto p-3 max-w-md">
+  <div class="popup-container">
+    <div class="container mx-auto p-2 max-w-full">
       <!-- 首次使用引导 -->
       <div v-if="isFirstTime" class="text-center animate-fade-in">
         <div
@@ -198,28 +272,26 @@ onMounted(() => {
         />
       </div>
 
-      <!-- 主界面 -->
-      <div v-else-if="showMainInterface" class="animate-fade-in">
-        <!-- 头部 - 位置选择器 -->
-        <header class="mb-4">
-          <div
-            class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
-          >
+      <!-- 主界面 - 简化版 -->
+      <div v-else-if="showMainInterface" class="animate-fade-in space-y-3">
+        <!-- 头部 - 紧凑版 -->
+        <header>
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
             <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <div class="text-2xl">🚽</div>
+              <div class="flex items-center space-x-2">
+                <div class="text-lg">🚽</div>
                 <div>
-                  <h1 class="font-bold text-gray-900 text-lg">PeepCRX</h1>
-                  <p class="text-xs text-gray-600">智能预测助手</p>
+                  <h1 class="font-bold text-gray-900 text-sm">PeepCRX</h1>
+                  <p class="text-xs text-gray-600">智能预测</p>
                 </div>
               </div>
 
-              <!-- 位置切换按钮 -->
+              <!-- 位置选择器 -->
               <button
                 @click="showLocationPicker = !showLocationPicker"
-                class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md font-medium"
+                class="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-lg transition-colors text-xs font-medium"
               >
-                <span class="text-sm">📍 {{ currentLocation?.name }}</span>
+                <span>📍 {{ currentLocation?.name }}</span>
                 <svg
                   class="w-3 h-3 transition-transform"
                   :class="{ 'rotate-180': showLocationPicker }"
@@ -237,29 +309,29 @@ onMounted(() => {
               </button>
             </div>
 
-            <!-- 位置选择下拉 -->
+            <!-- 位置下拉菜单 -->
             <div
               v-if="showLocationPicker"
-              class="mt-4 pt-3 border-t border-gray-100"
+              class="mt-3 pt-3 border-t border-gray-100"
             >
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <button
                   v-for="location in allLocations"
                   :key="location.id"
                   @click="switchLocation(location)"
                   :class="[
-                    'w-full text-left px-3 py-2 rounded-lg transition-all duration-200 font-medium',
+                    'w-full text-left px-2 py-1 rounded text-xs font-medium transition-all',
                     location.id === currentLocation?.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'hover:bg-gray-50 border border-gray-100 text-gray-900',
+                      ? 'bg-blue-600 '
+                      : 'hover:bg-gray-50 text-gray-900',
                   ]"
                 >
-                  <div class="font-semibold text-sm">{{ location.name }}</div>
+                  <div class="font-semibold">{{ location.name }}</div>
                   <div
                     :class="
                       location.id === currentLocation?.id
-                        ? 'text-blue-100'
-                        : 'text-gray-600'
+                        ? 'text-primary-500'
+                        : 'text-gray-500'
                     "
                     class="text-xs"
                   >
@@ -267,103 +339,89 @@ onMounted(() => {
                   </div>
                 </button>
 
-                <!-- 添加新位置按钮 -->
                 <button
                   @click="
                     currentTab = 'settings';
                     showLocationPicker = false;
                   "
-                  class="w-full px-3 py-2 rounded-lg border border-dashed border-gray-300 hover:border-blue-400 text-gray-700 hover:text-blue-700 transition-all duration-200 hover:bg-blue-50"
+                  class="w-full px-2 py-1 rounded border border-dashed border-gray-300 hover:border-blue-400 text-gray-700 hover:text-blue-700 transition-all text-xs"
                 >
-                  <div class="text-center">
-                    <span class="text-lg">+</span>
-                    <div class="text-xs font-medium">添加新位置</div>
-                  </div>
+                  + 添加新位置
+                </button>
+              </div>
+            </div>
+
+            <!-- 视觉降级的导航 -->
+            <div class="mt-3 pt-3 border-t border-gray-100">
+              <div class="flex items-center justify-center space-x-1">
+                <button
+                  @click="currentTab = 'predict'"
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-medium transition-all',
+                    currentTab === 'predict'
+                      ? 'bg-gray-100 text-gray-800'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+                  ]"
+                >
+                  预测
+                </button>
+                <span class="text-gray-300 text-xs">|</span>
+                <button
+                  @click="currentTab = 'record'"
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-medium transition-all',
+                    currentTab === 'record'
+                      ? 'bg-gray-100 text-gray-800'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+                  ]"
+                >
+                  记录
+                </button>
+                <span class="text-gray-300 text-xs">|</span>
+                <button
+                  @click="currentTab = 'settings'"
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-medium transition-all',
+                    currentTab === 'settings'
+                      ? 'bg-gray-100 text-gray-800'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+                  ]"
+                >
+                  设置
                 </button>
               </div>
             </div>
           </div>
         </header>
 
-        <!-- 快速记录按钮 -->
-        <div class="mb-4">
-          <div
-            class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
+        <!-- 快速记录 - 紧凑版 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
+          <h3
+            class="font-bold text-gray-900 mb-2 text-xs flex items-center justify-center"
           >
-            <h3
-              class="font-bold text-gray-900 mb-3 text-center text-sm flex items-center justify-center"
+            <span class="text-sm mr-1">🚀</span>
+            快速记录
+          </h3>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              @click="quickRecord(true)"
+              class="bg-red-600 hover:bg-red-700 py-2 px-2 rounded-lg font-semibold transition-all text-xs"
             >
-              <span class="text-base mr-2">🚀</span>
-              快速记录当前状态
-            </h3>
-            <div class="grid grid-cols-2 gap-3">
-              <button
-                @click="quickRecord(true)"
-                class="bg-red-600 hover:bg-red-700 text-white py-3 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                <div class="text-xl mb-1">😔</div>
-                <div class="text-sm">厕所满了</div>
-                <div class="text-xs opacity-90">记录拥挤状态</div>
-              </button>
-              <button
-                @click="quickRecord(false)"
-                class="bg-green-600 hover:bg-green-700 text-white py-3 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                <div class="text-xl mb-1">😊</div>
-                <div class="text-sm">有空位</div>
-                <div class="text-xs opacity-90">记录空闲状态</div>
-              </button>
-            </div>
+              <div class="text-base mb-0.5">😔</div>
+              <div>厕所满了</div>
+            </button>
+            <button
+              @click="quickRecord(false)"
+              class="bg-green-600 hover:bg-green-700 py-2 px-2 rounded-lg font-semibold transition-all text-xs"
+            >
+              <div class="text-base mb-0.5">😊</div>
+              <div>有空位</div>
+            </button>
           </div>
         </div>
 
-        <!-- 导航标签 -->
-        <nav
-          class="bg-white rounded-2xl shadow-card border border-gray-100 mb-4 overflow-hidden"
-        >
-          <div class="flex">
-            <button
-              @click="currentTab = 'predict'"
-              :class="[
-                'flex-1 py-3 px-3 text-xs font-semibold transition-all duration-200',
-                currentTab === 'predict'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50',
-              ]"
-            >
-              <div class="text-base mb-1">🔮</div>
-              <div>智能预测</div>
-            </button>
-            <button
-              @click="currentTab = 'record'"
-              :class="[
-                'flex-1 py-3 px-3 text-xs font-semibold transition-all duration-200 border-l border-gray-100',
-                currentTab === 'record'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50',
-              ]"
-            >
-              <div class="text-base mb-1">📝</div>
-              <div>详细记录</div>
-            </button>
-            <button
-              @click="currentTab = 'settings'"
-              :class="[
-                'flex-1 py-3 px-3 text-xs font-semibold transition-all duration-200 border-l border-gray-100',
-                currentTab === 'settings'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50',
-              ]"
-            >
-              <div class="text-base mb-1">⚙️</div>
-              <div>设置</div>
-            </button>
-          </div>
-        </nav>
-
         <!-- 内容区域 -->
         <main>
-          <!-- 预测页面 -->
           <div v-if="currentTab === 'predict'">
             <PredictionView
               ref="predictionViewRef"
@@ -371,75 +429,114 @@ onMounted(() => {
             />
           </div>
 
-          <!-- 记录页面 -->
-          <div v-if="currentTab === 'record'">
-            <RecordForm
-              ref="recordFormRef"
-              :current-location="currentLocation"
-            />
-          </div>
-
-          <!-- 设置页面 -->
-          <div v-if="currentTab === 'settings'" class="space-y-4">
-            <LocationSetup
-              :is-first-setup="false"
-              @location-added="onLocationAdded"
-            />
-
-            <!-- 使用统计 -->
+          <div v-if="currentTab === 'record'" class="space-y-3">
             <div
-              class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
+              class="bg-white rounded-xl shadow-sm border border-gray-200 p-3"
             >
               <h3
-                class="text-lg font-bold text-gray-900 mb-4 flex items-center"
+                class="text-sm font-bold text-gray-900 mb-3 flex items-center"
               >
-                <span class="text-xl mr-2">📊</span>
-                使用统计
+                <span class="text-base mr-1">📝</span>
+                详细记录
               </h3>
-              <div class="grid grid-cols-2 gap-3 text-center">
-                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <div class="text-2xl font-bold text-blue-700">
+              <RecordForm
+                ref="recordFormRef"
+                :current-location="currentLocation"
+              />
+            </div>
+          </div>
+
+          <div v-if="currentTab === 'settings'" class="space-y-3">
+            <!-- 位置管理 -->
+            <div
+              class="bg-white rounded-xl shadow-sm border border-gray-200 p-3"
+            >
+              <h3
+                class="text-sm font-bold text-gray-900 mb-3 flex items-center"
+              >
+                <span class="text-base mr-1">📍</span>
+                位置管理
+              </h3>
+              <LocationSetup
+                :is-first-setup="false"
+                @location-added="onLocationAdded"
+              />
+            </div>
+
+            <!-- 使用统计 - 简化版 -->
+            <div
+              class="bg-white rounded-xl shadow-sm border border-gray-200 p-3"
+            >
+              <h3
+                class="text-sm font-bold text-gray-900 mb-3 flex items-center"
+              >
+                <span class="text-base mr-1">📊</span>
+                数据统计
+              </h3>
+
+              <!-- 核心统计数据 -->
+              <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                <div class="bg-blue-50 rounded-lg p-2 border border-blue-100">
+                  <div class="text-lg font-bold text-blue-700">
                     {{ totalRecords }}
                   </div>
-                  <div class="text-xs text-blue-600 mt-1 font-medium">
-                    当前位置记录数
-                  </div>
+                  <div class="text-xs text-blue-600 font-medium">记录数</div>
                 </div>
-                <div class="bg-green-50 rounded-xl p-4 border border-green-100">
-                  <div class="text-2xl font-bold text-green-700">
+                <div class="bg-green-50 rounded-lg p-2 border border-green-100">
+                  <div class="text-lg font-bold text-green-700">
                     {{ allLocations.length }}
                   </div>
-                  <div class="text-xs text-green-600 mt-1 font-medium">
-                    位置数量
+                  <div class="text-xs text-green-600 font-medium">位置数</div>
+                </div>
+                <div
+                  class="bg-purple-50 rounded-lg p-2 border border-purple-100"
+                >
+                  <div class="text-lg font-bold text-purple-700">
+                    {{ getPredictionAccuracy() }}%
+                  </div>
+                  <div class="text-xs text-purple-600 font-medium">
+                    预测精度
                   </div>
                 </div>
               </div>
 
-              <!-- 数据质量提示 - 更新精度说明 -->
-              <div class="mt-4 p-3 bg-gray-50 rounded-xl">
-                <div class="text-sm font-medium text-gray-900 mb-2">
-                  预测精度指南：
+              <!-- 精度等级 -->
+              <div class="bg-gray-50 rounded-lg p-2">
+                <div class="text-xs font-medium text-gray-900 mb-2">
+                  精度等级
                 </div>
-                <div class="text-xs text-gray-700 space-y-1">
-                  <div class="flex items-center">
-                    <span
-                      class="w-2 h-2 bg-orange-500 rounded-full mr-2"
-                    ></span>
-                    <span>0-20条：30分钟精度，基础预测</span>
+                <div class="space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center">
+                      <div
+                        class="w-2 h-2 bg-orange-500 rounded-full mr-2"
+                      ></div>
+                      <span class="text-gray-700">初级 (0-20条)</span>
+                    </div>
+                    <span class="text-gray-600 font-mono">30分钟</span>
                   </div>
-                  <div class="flex items-center">
-                    <span
-                      class="w-2 h-2 bg-yellow-500 rounded-full mr-2"
-                    ></span>
-                    <span>20-30条：30分钟精度，中等可靠</span>
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center">
+                      <div
+                        class="w-2 h-2 bg-yellow-500 rounded-full mr-2"
+                      ></div>
+                      <span class="text-gray-700">中级 (20-30条)</span>
+                    </div>
+                    <span class="text-gray-600 font-mono">30分钟</span>
                   </div>
-                  <div class="flex items-center">
-                    <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                    <span>30-100条：15分钟精度，高可靠</span>
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center">
+                      <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                      <span class="text-gray-700">高级 (30-100条)</span>
+                    </div>
+                    <span class="text-gray-600 font-mono">15分钟</span>
                   </div>
-                  <div class="flex items-center">
-                    <span class="w-2 h-2 bg-green-600 rounded-full mr-2"></span>
-                    <span>100+条：10分钟精度，最高精度</span>
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center">
+                      <div class="w-2 h-2 bg-green-600 rounded-full mr-2"></div>
+                      <span class="text-gray-700">专家 (100+条)</span>
+                    </div>
+                    <span class="text-gray-600 font-mono">10分钟</span>
                   </div>
                 </div>
               </div>
@@ -447,17 +544,9 @@ onMounted(() => {
           </div>
         </main>
 
-        <!-- 底部信息 -->
-        <footer class="text-center mt-6 text-xs text-gray-600">
-          <div class="bg-white/80 rounded-xl p-3 border border-gray-100">
-            <p class="flex items-center justify-center">
-              <span class="text-green-600 mr-1">🔒</span>
-              数据仅本地存储，保护您的隐私
-            </p>
-            <p class="mt-1">
-              Version 0.2.0 | Made with <span class="text-red-600">❤️</span>
-            </p>
-          </div>
+        <!-- 极简底部信息 -->
+        <footer class="text-center">
+          <div class="text-xs text-gray-500 py-1">🔒 本地存储 · v0.2.0</div>
         </footer>
       </div>
     </div>
@@ -465,9 +554,61 @@ onMounted(() => {
 </template>
 
 <style scoped>
-button:focus {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
+/* Chrome扩展popup容器 */
+.popup-container {
+  width: 360px;
+  height: 480px;
+  min-height: 480px;
+  max-height: 480px;
+  overflow-y: auto;
+  background: linear-gradient(to bottom right, #f9fafb, #eff6ff);
+}
+
+/* 响应式调整 */
+@media (max-height: 500px) {
+  .popup-container {
+    height: 400px;
+    min-height: 400px;
+    max-height: 400px;
+  }
+}
+
+/* 滚动条样式优化 */
+.popup-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.popup-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.popup-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.popup-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 确保内容不会超出边界 */
+.container {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 修复按钮和输入框在固定宽度下的显示 */
+button,
+input,
+select {
+  box-sizing: border-box;
+}
+
+/* 防止文字溢出 */
+.truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes fade-in {
