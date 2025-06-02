@@ -12,7 +12,7 @@ import type {
   ChineseDateInfo,
 } from "../types";
 
-// 中国节假日数据 (2024-2025年)
+// 中国节假日数据 (2025年)
 const CHINESE_HOLIDAYS_DATA: Record<number, ChineseDateInfo[]> = {
   2025: [
     // 元旦 2025

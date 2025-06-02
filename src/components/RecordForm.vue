@@ -28,7 +28,7 @@
               <div class="font-semibold text-gray-900 text-sm">
                 {{
                   record.result === "full" || record.result === "occupied"
-                    ? "厕所满了"
+                    ? "满了"
                     : "有空位"
                 }}
               </div>
@@ -38,25 +38,56 @@
             </div>
           </div>
 
-          <button
-            @click="deleteRecord(record.id)"
-            class="text-danger-500 hover:text-danger-700 p-1 rounded-lg hover:bg-danger-50 transition-all duration-200"
-            title="删除记录"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div class="relative">
+            <button
+              @click="showDeleteConfirmation(record.id)"
+              class="delete-button text-danger-500 hover:text-danger-700 p-1 rounded-lg hover:bg-danger-50 transition-all duration-200"
+              title="删除记录"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              ></path>
-            </svg>
-          </button>
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                ></path>
+              </svg>
+            </button>
+
+            <!-- 删除确认气泡 -->
+            <div
+              v-if="showDeleteConfirm && deleteTargetId === record.id"
+              class="delete-confirm-bubble absolute bottom-full right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50 w-36"
+            >
+              <div class="text-xs text-gray-700 mb-2 text-center">
+                确认删除？
+              </div>
+              <div class="flex space-x-1">
+                <button
+                  @click="cancelDelete"
+                  class="flex-1 py-1 px-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  @click="confirmDelete"
+                  class="flex-1 py-1 px-2 bg-danger-600 hover:bg-danger-700 text-white rounded text-xs transition-all"
+                >
+                  删除
+                </button>
+              </div>
+
+              <!-- 气泡箭头 -->
+              <div
+                class="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"
+              ></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -103,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from "vue";
 import { StorageManager } from "../utils";
 import type { Location, ToiletRecord } from "../types";
 
@@ -115,6 +146,8 @@ const props = defineProps<{
 // 组件状态
 const recentRecords = ref<ToiletRecord[]>([]);
 const isLoading = ref(false);
+const showDeleteConfirm = ref(false);
+const deleteTargetId = ref<string>("");
 
 // 计算成功率
 const getSuccessRate = () => {
@@ -142,7 +175,7 @@ const addRecord = async (isFull: boolean) => {
     await loadRecentRecords();
 
     // 显示成功提示
-    const message = isFull ? "记录成功：厕所满了" : "记录成功：有空位";
+    const message = isFull ? "记录成功：满了" : "记录成功：有空位";
     showToast(message);
   } catch (error) {
     console.error("Add record error:", error);
@@ -169,17 +202,49 @@ const loadRecentRecords = async () => {
   }
 };
 
-// 删除记录
-const deleteRecord = async (recordId: string) => {
-  if (!confirm("确定要删除这条记录吗？")) return;
+// 删除记录 - 气泡确认
+const showDeleteConfirmation = (recordId: string) => {
+  deleteTargetId.value = recordId;
+  showDeleteConfirm.value = true;
 
+  // 下一帧添加点击外部关闭的监听器
+  nextTick(() => {
+    document.addEventListener("click", handleClickOutside);
+  });
+};
+
+const confirmDelete = async () => {
   try {
-    await StorageManager.deleteRecord(recordId);
+    await StorageManager.deleteRecord(deleteTargetId.value);
     await loadRecentRecords();
     showToast("删除成功");
   } catch (error) {
     console.error("Delete record error:", error);
     showToast("删除失败", "error");
+  } finally {
+    closeDeleteConfirm();
+  }
+};
+
+const cancelDelete = () => {
+  closeDeleteConfirm();
+};
+
+const closeDeleteConfirm = () => {
+  showDeleteConfirm.value = false;
+  deleteTargetId.value = "";
+  document.removeEventListener("click", handleClickOutside);
+};
+
+// 点击外部关闭气泡
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as Element;
+  const confirmBubble = target.closest(".delete-confirm-bubble");
+  const deleteButton = target.closest(".delete-button");
+
+  // 如果点击的不是气泡内部或删除按钮，则关闭气泡
+  if (!confirmBubble && !deleteButton) {
+    closeDeleteConfirm();
   }
 };
 
@@ -223,5 +288,10 @@ watch(() => props.currentLocation, loadRecentRecords, { immediate: true });
 
 onMounted(() => {
   loadRecentRecords();
+});
+
+// 组件卸载时清理事件监听器
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
 });
 </script>

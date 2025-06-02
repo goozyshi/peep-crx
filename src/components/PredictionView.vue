@@ -4,25 +4,28 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
       <!-- 当前时段状况 - 精简版 -->
       <div class="mb-3">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex flex-col">
+        <!-- 头部：标题和标签 -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
             <h2 class="text-sm font-bold text-gray-900 flex items-center">
               <span class="text-base mr-1">🕐</span>
               当前状况
             </h2>
-            <!-- 当前时间显示 -->
-            <div class="text-xs text-gray-600 mt-0.5 font-mono">
-              {{ formattedCurrentTime }}
+            <!-- 当前时间 - 精简显示 -->
+            <div class="text-xs text-gray-500 font-mono">
+              {{ formatTime(currentTime) }}
             </div>
           </div>
-          <div class="flex items-center space-x-2">
+
+          <!-- 右侧标签组 -->
+          <div class="flex items-center space-x-1">
             <!-- 日期类型标签 -->
             <div
               v-if="currentDateInfo"
               class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border"
               :class="getDateTypeStyle(currentDateInfo.type)"
             >
-              <span class="mr-1">{{
+              <span class="mr-0.5">{{
                 getDateTypeIcon(currentDateInfo.type)
               }}</span>
               <span>{{ getDateTypeDisplayName(currentDateInfo.type) }}</span>
@@ -38,27 +41,8 @@
           </div>
         </div>
 
-        <!-- 节假日名称显示 - 精简 -->
-        <div
-          v-if="
-            currentDateInfo &&
-            currentDateInfo.name &&
-            (currentDateInfo.type === 'holiday' ||
-              currentDateInfo.type === 'compensatory_holiday')
-          "
-          class="mb-2 text-xs text-gray-600 flex items-center"
-        >
-          <span class="mr-1">🎊</span>
-          <span>{{ currentDateInfo.name }}</span>
-          <span
-            v-if="currentDateInfo.type === 'compensatory_holiday'"
-            class="ml-1 text-orange-600"
-            >(调休)</span
-          >
-        </div>
-
-        <!-- 状态显示区域 -->
-        <div v-if="isLoading" class="text-center py-3">
+        <!-- 主要状态显示 - 突出主次 -->
+        <div v-if="isLoading" class="text-center py-2">
           <div class="inline-flex items-center">
             <div
               class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"
@@ -75,29 +59,55 @@
           <div class="text-xs text-gray-600">暂无数据，开始记录吧</div>
         </div>
 
-        <div v-else class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="text-xl">
-              {{ getBusyEmoji(currentPrediction.busyLevel) }}
-            </div>
-            <div>
-              <div
-                class="text-base font-bold"
-                :class="getBusyLevelColorText(currentPrediction.busyLevel)"
-              >
-                {{ Math.round(currentPrediction.busyLevel) }}% 繁忙
+        <!-- 核心状态 - 视觉重点 -->
+        <div v-else>
+          <div class="flex items-center justify-between">
+            <!-- 左侧：主要状态信息 -->
+            <div class="flex items-center space-x-3">
+              <div class="text-2xl">
+                {{ getBusyEmoji(currentPrediction.busyLevel) }}
               </div>
-              <div class="text-xs text-gray-600">
-                {{ getRecommendation(currentPrediction.busyLevel) }}
+              <div>
+                <div
+                  class="text-lg font-bold"
+                  :class="getBusyLevelColorText(currentPrediction.busyLevel)"
+                >
+                  {{ Math.round(currentPrediction.busyLevel) }}%
+                </div>
+                <div class="text-xs text-gray-600 -mt-1">
+                  {{ getRecommendation(currentPrediction.busyLevel) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧：数据指标 - 弱化显示 -->
+            <div class="text-right text-xs text-gray-500 space-y-0.5">
+              <div class="flex items-center justify-end space-x-1">
+                <span>{{ currentPrediction.dataQuality.icon }}</span>
+                <span>{{ currentPrediction.sampleSize }}条</span>
+              </div>
+              <div class="text-xs">
+                {{ Math.round(currentPrediction.confidence * 100) }}%可信
               </div>
             </div>
           </div>
-          <div class="text-right text-xs text-gray-500">
-            <div>
-              {{ currentPrediction.dataQuality.icon }}
-              {{ currentPrediction.sampleSize }}条
-            </div>
-            <div>{{ Math.round(currentPrediction.confidence * 100) }}%可信</div>
+
+          <!-- 节假日信息 - 紧凑显示 -->
+          <div
+            v-if="
+              currentDateInfo &&
+              currentDateInfo.name &&
+              (currentDateInfo.type === 'holiday' ||
+                currentDateInfo.type === 'compensatory_holiday')
+            "
+            class="mt-2 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700 text-center"
+          >
+            🎊 {{ currentDateInfo.name }}
+            <span
+              v-if="currentDateInfo.type === 'compensatory_holiday'"
+              class="text-orange-600"
+              >(调休)</span
+            >
           </div>
         </div>
       </div>
@@ -118,29 +128,36 @@
               <span class="text-sm mr-1">🚀</span>
               快速记录现在的情况
             </h3>
-            <div class="text-xs text-gray-500 font-mono">
-              {{ formatTime(currentTime) }}
-            </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2 mb-3">
             <button
               @click="handleQuickRecord(true)"
               :disabled="isRecordingAnimating"
-              class="bg-red-600 hover:bg-red-700 disabled:opacity-75 disabled:cursor-not-allowed py-2 px-3 rounded-lg font-semibold transition-all text-xs flex flex-col items-center space-y-1"
+              class="btn-sad relative overflow-hidden disabled:cursor-not-allowed text-gray-700 py-3 px-3 rounded-lg font-semibold transition-all text-xs"
               :class="{ 'animate-pulse': isRecordingAnimating }"
             >
-              <div class="text-base">😔</div>
-              <div>厕所满了</div>
+              <div class="relative z-10">满了</div>
+              <!-- 背景emoji -->
+              <div
+                class="absolute bottom-1 right-1 text-2xl opacity-40 pointer-events-none"
+              >
+                😔
+              </div>
             </button>
             <button
               @click="handleQuickRecord(false)"
               :disabled="isRecordingAnimating"
-              class="bg-green-600 hover:bg-green-700 disabled:opacity-75 disabled:cursor-not-allowed py-2 px-3 rounded-lg font-semibold transition-all text-xs flex flex-col items-center space-y-1"
+              class="btn-happy relative overflow-hidden disabled:cursor-not-allowed text-gray-700 py-3 px-3 rounded-lg font-semibold transition-all text-xs"
               :class="{ 'animate-pulse': isRecordingAnimating }"
             >
-              <div class="text-base">😊</div>
-              <div>有空位</div>
+              <div class="relative z-10">有空位</div>
+              <!-- 背景emoji -->
+              <div
+                class="absolute bottom-1 right-1 text-2xl opacity-40 pointer-events-none"
+              >
+                😊
+              </div>
             </button>
           </div>
 
@@ -181,15 +198,18 @@
         </div>
       </Transition>
 
-      <!-- 记录成功后的提示 -->
+      <!-- 记录成功后的提示 - 修改消失动画方向 -->
       <Transition
         name="fade-in"
         enter-active-class="transition-all duration-200 ease-out"
         enter-from-class="opacity-0 translate-y-1"
         enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition-all duration-500 ease-in"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 -translate-y-2"
       >
         <div
-          v-if="!showQuickRecord"
+          v-if="showSuccessMessage"
           class="border-t border-gray-100 pt-3 text-center"
         >
           <div class="text-green-600 text-sm mb-2">✅ 记录成功</div>
@@ -351,6 +371,7 @@ const expandedSlot = ref<number | null>(null);
 
 // 快速记录卡片显示状态
 const showQuickRecord = ref(true);
+const showSuccessMessage = ref(false);
 const isRecordingAnimating = ref(false);
 
 // 当前时间状态
@@ -396,18 +417,24 @@ const startTimeUpdater = () => {
   cleanup.createTimer(updateCurrentTime, 1000, true);
 };
 
-// 处理快速记录 - 简化动画
+// 处理快速记录 - 缩短成功提示显示时间
 const handleQuickRecord = async (isFull: boolean) => {
   isRecordingAnimating.value = true;
 
   // 触发父组件的记录逻辑
   emit("quick-record", isFull);
 
-  // 缩短延迟时间，快速隐藏卡片
+  // 先隐藏快速记录卡片，显示成功提示
   setTimeout(() => {
     showQuickRecord.value = false;
+    showSuccessMessage.value = true;
     isRecordingAnimating.value = false;
-  }, 300); // 0.3秒后隐藏
+  }, 300);
+
+  // 成功提示显示1.5秒后消失
+  setTimeout(() => {
+    showSuccessMessage.value = false;
+  }, 1800); // 300ms + 1500ms = 1.8秒总时长
 };
 
 // 加载预测数据
@@ -584,8 +611,9 @@ watch(() => props.currentLocation, loadPredictions, { immediate: true });
 
 // 组件挂载
 onMounted(() => {
-  // 重新打开扩展时显示快速记录卡片
+  // 重新打开扩展时显示快速记录卡片，重置成功提示
   showQuickRecord.value = true;
+  showSuccessMessage.value = false;
 
   // 启动时间更新器
   startTimeUpdater();
@@ -631,5 +659,220 @@ onUnmounted(() => {
 .fade-in-enter-from {
   opacity: 0;
   transform: translateY(4px);
+}
+
+/* 按钮基础样式 - 添加颜色提示的默认状态 */
+.btn-sad,
+.btn-happy {
+  will-change: transform, background;
+  position: relative;
+  transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 失望按钮默认状态 - 淡红色提示 */
+.btn-sad {
+  background: linear-gradient(145deg, #fef2f2, #fecaca, #f3f4f6);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* 开心按钮默认状态 - 淡绿色提示 */
+.btn-happy {
+  background: linear-gradient(145deg, #f0fdf4, #bbf7d0, #f3f4f6);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* 失望按钮 - 柔和的hover过渡 */
+.btn-sad:hover:not(:disabled) {
+  background: linear-gradient(45deg, #dc2626, #ef4444, #dc2626, #7f1d1d);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  animation: sadBackgroundShift 2s ease-in-out infinite,
+    sadShiver 0.8s ease-in-out infinite;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 20px rgba(220, 38, 38, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-sad:hover:not(:disabled)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: sadShine 1.5s ease-in-out infinite;
+  z-index: 1;
+}
+
+.btn-sad:hover:not(:disabled) > div:last-child {
+  animation: emojiSadPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sadBackgroundShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes sadShiver {
+  0%,
+  100% {
+    transform: translateY(-1px) scale(1.02) translateX(0);
+  }
+  25% {
+    transform: translateY(-1px) scale(1.02) translateX(-2px);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.02) translateX(0);
+  }
+  75% {
+    transform: translateY(-1px) scale(1.02) translateX(2px);
+  }
+}
+
+@keyframes sadShine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes emojiSadPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* 开心按钮 - 柔和的hover过渡 */
+.btn-happy:hover:not(:disabled) {
+  background: linear-gradient(45deg, #16a34a, #22c55e, #16a34a, #059669);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  border: 1px solid #16a34a;
+  color: #ffffff;
+  animation: happyBackgroundShift 1.8s ease-in-out infinite;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15), 0 0 25px rgba(34, 197, 94, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-happy:hover:not(:disabled)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: happyShine 1.2s ease-in-out infinite;
+  z-index: 1;
+}
+
+.btn-happy:hover:not(:disabled) > div:last-child {
+  animation: emojiHappyBounce 1.4s ease-in-out infinite;
+}
+
+@keyframes happyBackgroundShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes happyShine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes emojiHappyBounce {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    opacity: 0.8;
+    transform: scale(1.15) rotate(-3deg);
+  }
+  75% {
+    opacity: 0.8;
+    transform: scale(1.15) rotate(3deg);
+  }
+}
+
+/* 点击时的反馈动画 */
+.btn-sad:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.1s ease;
+}
+
+.btn-happy:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.1s ease;
+}
+
+/* 确保文字在最上层 */
+.btn-sad > div:first-child,
+.btn-happy > div:first-child {
+  position: relative;
+  z-index: 2;
+}
+
+/* 禁用状态时移除动画 */
+.btn-sad:disabled,
+.btn-happy:disabled {
+  will-change: auto;
+  animation: none;
+  background: linear-gradient(145deg, #f1f5f9, #e2e8f0);
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-sad:disabled::before,
+.btn-happy:disabled::before {
+  display: none;
+}
+
+.btn-sad:disabled > div:last-child,
+.btn-happy:disabled > div:last-child {
+  animation: none;
 }
 </style>
