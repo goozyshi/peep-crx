@@ -17,11 +17,38 @@ export interface Location {
   isDefault?: boolean;
 }
 
-// 预测结果类型（简化版）
+// 时间颗粒度类型 - 调整精度范围
+export type TimeGranularity = "10min" | "15min" | "30min";
+
+// 数据质量等级
+export interface DataQuality {
+  level: "high" | "medium" | "low";
+  color: "green" | "yellow" | "orange";
+  text: string;
+  icon: string;
+  confidence: number;
+  sampleSize: number;
+}
+
+// 增强的预测结果类型
 export interface PredictionResult {
   timeSlot: string;
+  startTime: Date;
+  endTime: Date;
   busyLevel: number;
   confidence: number;
+  sampleSize: number;
+  dataQuality: DataQuality;
+  granularity: TimeGranularity;
+  isRecommended: boolean;
+  rank?: number; // 推荐排名
+}
+
+// 最佳时段结果
+export interface BestTimeSlot {
+  prediction: PredictionResult;
+  score: number; // 综合评分
+  reason: string; // 推荐理由
 }
 
 // 时间段统计
@@ -60,6 +87,7 @@ export interface UserSettings {
   theme: "light" | "dark" | "auto";
   notifications: boolean;
   defaultTimeOffset: number;
+  preferredGranularity?: TimeGranularity;
 }
 
 // 预测请求
@@ -67,6 +95,7 @@ export interface PredictionRequest {
   locationId: string;
   targetTime: Date;
   hoursAhead?: number;
+  maxResults?: number;
 }
 
 // 推荐时段
@@ -114,4 +143,13 @@ export interface HeatMapData {
     probability: number;
     confidence: number;
   }>;
+}
+
+// 数据收集进度
+export interface DataCollectionProgress {
+  currentRecords: number;
+  targetRecords: number;
+  progressPercentage: number;
+  qualityLevel: DataQuality["level"];
+  recommendations: string[];
 }

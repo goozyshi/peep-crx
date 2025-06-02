@@ -1,5 +1,40 @@
 <template>
   <div class="space-y-4">
+    <!-- 数据收集进度（数据不足时显示） -->
+    <div
+      v-if="dataProgress && dataProgress.qualityLevel !== 'high'"
+      class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
+    >
+      <div class="flex items-start space-x-3">
+        <div class="text-2xl">📊</div>
+        <div class="flex-1">
+          <h3 class="font-bold text-gray-900 mb-2">数据收集进度</h3>
+          <div class="bg-gray-200 rounded-full h-2 mb-3">
+            <div
+              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              :style="{ width: dataProgress.progressPercentage + '%' }"
+            ></div>
+          </div>
+          <div class="text-sm text-gray-700 mb-2">
+            已收集 {{ dataProgress.currentRecords }} /
+            {{ dataProgress.targetRecords }} 条记录 ({{
+              Math.round(dataProgress.progressPercentage)
+            }}%)
+          </div>
+          <ul class="text-xs text-gray-600 space-y-1">
+            <li
+              v-for="tip in dataProgress.recommendations"
+              :key="tip"
+              class="flex items-start"
+            >
+              <span class="text-blue-500 mr-2">•</span>
+              <span>{{ tip }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <!-- 当前时段预测 -->
     <div class="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
       <div class="text-center">
@@ -7,7 +42,7 @@
           class="text-lg font-bold text-gray-900 mb-4 flex items-center justify-center"
         >
           <span class="text-xl mr-2">🕐</span>
-          当前时段预测
+          当前时段状况
         </h2>
 
         <div v-if="isLoading" class="py-8">
@@ -29,7 +64,7 @@
           </div>
         </div>
 
-        <div v-else-if="predictions.length === 0" class="py-8">
+        <div v-else-if="!currentPrediction" class="py-8">
           <div class="text-4xl mb-4">📊</div>
           <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
             <h3 class="font-bold text-gray-900 mb-2">暂无数据</h3>
@@ -41,90 +76,125 @@
         </div>
 
         <div v-else>
-          <div v-if="getCurrentPrediction()" class="space-y-4">
+          <div class="space-y-4">
             <div class="text-6xl">
-              {{ getBusyEmoji(getCurrentPrediction()!.busyLevel) }}
+              {{ getBusyEmoji(currentPrediction.busyLevel) }}
             </div>
-            <div class="bg-primary-50 rounded-xl p-4 border border-primary-100">
-              <div class="text-3xl font-bold text-primary-800 mb-1">
-                {{ Math.round(getCurrentPrediction()!.busyLevel) }}% 繁忙
+            <div
+              class="rounded-xl p-4 border"
+              :class="getBusyLevelStyle(currentPrediction.busyLevel)"
+            >
+              <div class="text-3xl font-bold mb-1">
+                {{ Math.round(currentPrediction.busyLevel) }}% 繁忙
               </div>
-              <div class="text-gray-700 font-medium">
-                {{ getRecommendation(getCurrentPrediction()!.busyLevel) }}
+              <div class="text-sm font-medium opacity-90">
+                {{ getRecommendation(currentPrediction.busyLevel) }}
               </div>
             </div>
-          </div>
 
-          <div v-else class="space-y-4">
-            <div class="text-4xl">❓</div>
-            <div class="bg-warning-50 rounded-xl p-4 border border-warning-200">
-              <div class="font-bold text-gray-900 mb-1">当前时段数据不足</div>
-              <div class="text-gray-700 text-sm">请查看下方全天预测</div>
+            <!-- 数据质量指示器 -->
+            <div
+              class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium border"
+              :class="getQualityColorClass(currentPrediction.dataQuality.level)"
+            >
+              <span class="mr-2">{{ currentPrediction.dataQuality.icon }}</span>
+              <span>{{ currentPrediction.dataQuality.text }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 全天预测时段 -->
+    <!-- 最佳时段推荐 -->
     <div
-      v-if="predictions.length > 0"
+      v-if="bestTimeSlots.length > 0"
       class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
     >
       <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-        <span class="text-xl mr-2">📅</span>
-        全天预测时段
+        <span class="text-xl mr-2">⭐</span>
+        推荐时段
+        <span
+          class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
+        >
+          {{ granularityText }}
+        </span>
       </h3>
 
-      <div class="grid grid-cols-2 gap-2">
+      <div class="space-y-3">
         <div
-          v-for="prediction in predictions"
-          :key="prediction.timeSlot"
-          :class="[
-            'p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer hover:scale-105',
-            getBusyLevelStyle(prediction.busyLevel),
-          ]"
+          v-for="(slot, index) in bestTimeSlots"
+          :key="slot.prediction.timeSlot"
+          class="relative p-4 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+          :class="getBusyLevelStyle(slot.prediction.busyLevel)"
+          @click="toggleSlotDetails(index)"
         >
-          <div class="font-bold text-xs mb-1">{{ prediction.timeSlot }}</div>
-          <div class="text-lg mb-1">
-            {{ getBusyEmoji(prediction.busyLevel) }}
+          <!-- 排名徽章 -->
+          <div
+            class="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center"
+          >
+            {{ index + 1 }}
           </div>
-          <div class="text-xs font-semibold">
-            {{ Math.round(prediction.busyLevel) }}%
-          </div>
-          <div class="text-xs opacity-75">
-            {{ getBusyLevelText(prediction.busyLevel) }}
-          </div>
-        </div>
-      </div>
 
-      <!-- 图例 -->
-      <div class="mt-4 pt-4 border-t border-gray-100">
-        <div class="text-xs text-gray-700 mb-2 font-medium">繁忙程度图例：</div>
-        <div class="grid grid-cols-4 gap-1 text-xs">
-          <div
-            class="flex flex-col items-center p-2 bg-success-50 rounded-lg border border-success-200"
-          >
-            <span class="w-2 h-2 bg-success-500 rounded-full mb-1"></span>
-            <span class="text-success-700 font-medium">空闲</span>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-bold text-sm mb-1">
+                {{ slot.prediction.timeSlot }}
+              </div>
+              <div class="text-xs opacity-75 mb-2">{{ slot.reason }}</div>
+              <div class="flex items-center space-x-3 text-xs">
+                <span class="font-semibold"
+                  >{{ Math.round(slot.prediction.busyLevel) }}% 繁忙</span
+                >
+                <span
+                  :class="
+                    getQualityColorClass(
+                      slot.prediction.dataQuality.level
+                    ).split(' ')[0]
+                  "
+                >
+                  {{ slot.prediction.dataQuality.icon }}
+                  {{ slot.prediction.sampleSize }}条数据
+                </span>
+              </div>
+            </div>
+
+            <div class="text-right">
+              <div class="text-2xl mb-1">
+                {{ getBusyEmoji(slot.prediction.busyLevel) }}
+              </div>
+              <div class="text-xs opacity-75">
+                评分 {{ Math.round(slot.score * 100) }}
+              </div>
+            </div>
           </div>
+
+          <!-- 展开的详细信息 -->
           <div
-            class="flex flex-col items-center p-2 bg-warning-50 rounded-lg border border-warning-200"
+            v-if="expandedSlot === index"
+            class="mt-4 pt-4 border-t border-black/10 text-xs space-y-2"
           >
-            <span class="w-2 h-2 bg-warning-500 rounded-full mb-1"></span>
-            <span class="text-warning-700 font-medium">适中</span>
-          </div>
-          <div
-            class="flex flex-col items-center p-2 bg-warning-50 rounded-lg border border-warning-300"
-          >
-            <span class="w-2 h-2 bg-warning-600 rounded-full mb-1"></span>
-            <span class="text-warning-800 font-medium">繁忙</span>
-          </div>
-          <div
-            class="flex flex-col items-center p-2 bg-danger-50 rounded-lg border border-danger-200"
-          >
-            <span class="w-2 h-2 bg-danger-500 rounded-full mb-1"></span>
-            <span class="text-danger-700 font-medium">拥挤</span>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="font-medium">置信度:</span>
+                {{ Math.round(slot.prediction.confidence * 100) }}%
+              </div>
+              <div>
+                <span class="font-medium">数据颗粒度:</span>
+                {{ granularityText }}
+              </div>
+              <div>
+                <span class="font-medium">预测时间:</span>
+                {{ formatTime(slot.prediction.startTime) }}
+              </div>
+              <div>
+                <span class="font-medium">样本数量:</span>
+                {{ slot.prediction.sampleSize }} 条
+              </div>
+            </div>
+            <div class="mt-3 p-2 bg-black/5 rounded">
+              <span class="font-medium">数据质量:</span>
+              {{ slot.prediction.dataQuality.text }}
+            </div>
           </div>
         </div>
       </div>
@@ -139,19 +209,19 @@
           <ul class="space-y-2 text-sm">
             <li class="flex items-start">
               <span class="text-green-500 mr-3 mt-1">🟢</span>
-              <span>绿色时段：空位较多，推荐前往</span>
+              <span>绿色时段：空位较多，强烈推荐</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-yellow-500 mr-3 mt-1">🟡</span>
+              <span>黄色时段：适中，可以前往</span>
             </li>
             <li class="flex items-start">
               <span class="text-red-500 mr-3 mt-1">🔴</span>
-              <span>红色时段：建议避开或等待</span>
-            </li>
-            <li class="flex items-start">
-              <span class="text-blue-500 mr-3 mt-1">📊</span>
-              <span>数据基于历史记录，仅供参考</span>
+              <span>红色时段：较忙，建议避开</span>
             </li>
             <li class="flex items-start">
               <span class="text-purple-500 mr-3 mt-1">📈</span>
-              <span>记录越多，预测越准确</span>
+              <span>记录越多，精度越高（最高10分钟精度）</span>
             </li>
           </ul>
         </div>
@@ -161,9 +231,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
-import { StorageManager, PredictionEngine } from "../utils";
-import type { Location, PredictionResult } from "../types";
+import { ref, onMounted, watch, computed } from "vue";
+import { StorageManager, PredictionEngine, DataQualityUtils } from "../utils";
+import type {
+  Location,
+  PredictionResult,
+  BestTimeSlot,
+  DataCollectionProgress,
+  TimeGranularity,
+} from "../types";
 
 // Props
 const props = defineProps<{
@@ -171,19 +247,27 @@ const props = defineProps<{
 }>();
 
 // 组件状态
-const predictions = ref<PredictionResult[]>([]);
+const bestTimeSlots = ref<BestTimeSlot[]>([]);
+const currentPrediction = ref<PredictionResult | null>(null);
+const dataProgress = ref<DataCollectionProgress | null>(null);
 const isLoading = ref(false);
 const error = ref<string>("");
+const expandedSlot = ref<number | null>(null);
 
-// 获取当前时间段的预测
-const getCurrentPrediction = () => {
-  const now = new Date();
-  const currentHour = now.getHours();
-  return predictions.value.find((p) => {
-    const [start] = p.timeSlot.split("-").map((t) => parseInt(t));
-    return currentHour >= start && currentHour < start + 1;
-  });
-};
+// 计算属性
+const granularityText = computed(() => {
+  if (!currentPrediction.value) return "";
+  switch (currentPrediction.value.granularity) {
+    case "10min":
+      return "10分钟精度";
+    case "15min":
+      return "15分钟精度";
+    case "30min":
+      return "30分钟精度";
+    default:
+      return "";
+  }
+});
 
 // 加载预测数据
 const loadPredictions = async () => {
@@ -198,7 +282,9 @@ const loadPredictions = async () => {
     );
 
     if (records.length === 0) {
-      predictions.value = [];
+      bestTimeSlots.value = [];
+      currentPrediction.value = null;
+      dataProgress.value = DataQualityUtils.getDataCollectionProgress(0);
       return;
     }
 
@@ -206,7 +292,15 @@ const loadPredictions = async () => {
       records,
       props.currentLocation.totalStalls
     );
-    predictions.value = engine.generateHourlyPredictions();
+
+    // 获取最佳时段
+    bestTimeSlots.value = engine.generateBestTimeSlots(5);
+
+    // 获取当前时段预测
+    currentPrediction.value = engine.getCurrentPrediction();
+
+    // 获取数据收集进度
+    dataProgress.value = engine.getDataCollectionProgress();
   } catch (err) {
     error.value = "加载预测数据失败";
     console.error("Load predictions error:", err);
@@ -215,39 +309,49 @@ const loadPredictions = async () => {
   }
 };
 
+// 切换时段详情展示
+const toggleSlotDetails = (index: number) => {
+  expandedSlot.value = expandedSlot.value === index ? null : index;
+};
+
 // 获取忙碌程度的样式
 const getBusyLevelStyle = (level: number) => {
-  if (level >= 80)
+  if (level >= 70)
     return "bg-gradient-to-br from-red-100 to-red-200 text-red-800 border-red-300 hover:from-red-200 hover:to-red-300";
-  if (level >= 60)
+  if (level >= 50)
     return "bg-gradient-to-br from-orange-100 to-orange-200 text-orange-800 border-orange-300 hover:from-orange-200 hover:to-orange-300";
-  if (level >= 40)
+  if (level >= 30)
     return "bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-300 hover:from-yellow-200 hover:to-yellow-300";
   return "bg-gradient-to-br from-green-100 to-green-200 text-green-800 border-green-300 hover:from-green-200 hover:to-green-300";
 };
 
-// 获取忙碌程度的emoji
-const getBusyEmoji = (level: number) => {
-  if (level >= 80) return "🔴";
-  if (level >= 60) return "🟠";
-  if (level >= 40) return "🟡";
-  return "🟢";
+// 获取数据质量颜色类
+const getQualityColorClass = (level: string) => {
+  return DataQualityUtils.getQualityColorClass(level as any);
 };
 
-// 获取忙碌程度文本
-const getBusyLevelText = (level: number) => {
-  if (level >= 80) return "拥挤";
-  if (level >= 60) return "繁忙";
-  if (level >= 40) return "适中";
-  return "空闲";
+// 获取忙碌程度的emoji
+const getBusyEmoji = (level: number) => {
+  if (level >= 70) return "🔴";
+  if (level >= 50) return "🟠";
+  if (level >= 30) return "🟡";
+  return "🟢";
 };
 
 // 获取建议文本
 const getRecommendation = (level: number) => {
-  if (level >= 80) return "建议等待或稍后再来";
-  if (level >= 60) return "可能需要等待";
-  if (level >= 40) return "适中，可以前往";
+  if (level >= 70) return "建议等待或稍后再来";
+  if (level >= 50) return "可能需要等待";
+  if (level >= 30) return "适中，可以前往";
   return "空位较多，推荐时段";
+};
+
+// 格式化时间
+const formatTime = (date: Date) => {
+  return date.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 // 暴露方法给父组件

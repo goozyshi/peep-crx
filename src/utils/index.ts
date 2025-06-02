@@ -1,13 +1,44 @@
 import * as ss from "simple-statistics";
-import type { ToiletRecord, Location, UserSettings } from "../types";
+import type {
+  ToiletRecord,
+  Location,
+  UserSettings,
+  TimeGranularity,
+  DataQuality,
+  PredictionResult,
+  BestTimeSlot,
+  DataCollectionProgress,
+} from "../types";
 
 // 时间段处理工具
 export class TimeSlotUtils {
-  static getTimeSlotKey(date: Date): string {
+  // 根据数据量决定时间颗粒度 - 调整为新的精度范围
+  static determineGranularity(recordCount: number): TimeGranularity {
+    if (recordCount >= 100) return "10min"; // 100条记录以上使用10分钟精度
+    if (recordCount >= 30) return "15min"; // 30-99条记录使用15分钟精度
+    return "30min"; // 30条以下使用30分钟精度
+  }
+
+  // 根据颗粒度获取时间段键
+  static getTimeSlotKey(
+    date: Date,
+    granularity: TimeGranularity = "30min"
+  ): string {
     const weekday = date.getDay();
     const hour = date.getHours();
-    const minute = Math.floor(date.getMinutes() / 30) * 30;
-    return `${weekday}-${hour}-${minute}`;
+
+    switch (granularity) {
+      case "10min":
+        const minute10 = Math.floor(date.getMinutes() / 10) * 10;
+        return `${weekday}-${hour}-${minute10}`;
+      case "15min":
+        const minute15 = Math.floor(date.getMinutes() / 15) * 15;
+        return `${weekday}-${hour}-${minute15}`;
+      case "30min":
+      default:
+        const minute30 = Math.floor(date.getMinutes() / 30) * 30;
+        return `${weekday}-${hour}-${minute30}`;
+    }
   }
 
   static parseTimeSlotKey(timeSlotKey: string): {
@@ -19,25 +50,94 @@ export class TimeSlotUtils {
     return { weekday, hour, minute };
   }
 
-  static getTimeSlotDisplay(timeSlotKey: string): string {
+  static getTimeSlotDisplay(
+    timeSlotKey: string,
+    granularity: TimeGranularity = "30min"
+  ): string {
     const { weekday, hour, minute } = this.parseTimeSlotKey(timeSlotKey);
     const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-    const timeStr = `${hour.toString().padStart(2, "0")}:${minute
-      .toString()
-      .padStart(2, "0")}`;
-    return `${weekdays[weekday]} ${timeStr}`;
+
+    switch (granularity) {
+      case "10min":
+        const endMinute10 = minute + 10;
+        const endHour10 = endMinute10 >= 60 ? hour + 1 : hour;
+        const actualEndMinute10 =
+          endMinute10 >= 60 ? endMinute10 - 60 : endMinute10;
+        return `${weekdays[weekday]} ${hour
+          .toString()
+          .padStart(2, "0")}:${minute.toString().padStart(2, "0")}-${endHour10
+          .toString()
+          .padStart(2, "0")}:${actualEndMinute10.toString().padStart(2, "0")}`;
+
+      case "15min":
+        const endMinute15 = minute + 15;
+        const endHour15 = endMinute15 >= 60 ? hour + 1 : hour;
+        const actualEndMinute15 =
+          endMinute15 >= 60 ? endMinute15 - 60 : endMinute15;
+        return `${weekdays[weekday]} ${hour
+          .toString()
+          .padStart(2, "0")}:${minute.toString().padStart(2, "0")}-${endHour15
+          .toString()
+          .padStart(2, "0")}:${actualEndMinute15.toString().padStart(2, "0")}`;
+
+      case "30min":
+      default:
+        const endMinute30 = minute + 30;
+        const endHour30 = endMinute30 >= 60 ? hour + 1 : hour;
+        const actualEndMinute30 =
+          endMinute30 >= 60 ? endMinute30 - 60 : endMinute30;
+        return `${weekdays[weekday]} ${hour
+          .toString()
+          .padStart(2, "0")}:${minute.toString().padStart(2, "0")}-${endHour30
+          .toString()
+          .padStart(2, "0")}:${actualEndMinute30
+          .toString()
+          .padStart(2, "0")}:00`;
+    }
   }
 
+  // 获取未来时间段，支持不同颗粒度
   static getFutureTimeSlots(
-    count: number = 24
-  ): Array<{ key: string; date: Date }> {
-    const slots: Array<{ key: string; date: Date }> = [];
+    count: number = 24,
+    granularity: TimeGranularity = "30min"
+  ): Array<{ key: string; date: Date; startTime: Date; endTime: Date }> {
+    const slots: Array<{
+      key: string;
+      date: Date;
+      startTime: Date;
+      endTime: Date;
+    }> = [];
     const now = new Date();
 
+    let intervalMinutes: number;
+    switch (granularity) {
+      case "10min":
+        intervalMinutes = 10;
+        break;
+      case "15min":
+        intervalMinutes = 15;
+        break;
+      case "30min":
+      default:
+        intervalMinutes = 30;
+        break;
+    }
+
     for (let i = 0; i < count; i++) {
-      const futureTime = new Date(now.getTime() + i * 30 * 60 * 1000);
-      const key = this.getTimeSlotKey(futureTime);
-      slots.push({ key, date: futureTime });
+      const futureTime = new Date(
+        now.getTime() + i * intervalMinutes * 60 * 1000
+      );
+      const key = this.getTimeSlotKey(futureTime, granularity);
+      const endTime = new Date(
+        futureTime.getTime() + intervalMinutes * 60 * 1000
+      );
+
+      slots.push({
+        key,
+        date: futureTime,
+        startTime: futureTime,
+        endTime: endTime,
+      });
     }
 
     return slots;
@@ -144,7 +244,7 @@ export class StatisticsUtils {
   }
 }
 
-// Chrome存储管理
+// Chrome存储管理（补充完整的实现）
 export class StorageManager {
   static async get<T>(key: string): Promise<T | null> {
     try {
@@ -248,25 +348,31 @@ export class StorageManager {
     const grouped: Record<string, ToiletRecord[]> = {};
 
     records.forEach((record) => {
-      const key = `${record.locationId}_${TimeSlotUtils.getTimeSlotKey(
-        new Date(record.timestamp)
-      )}`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(record);
+      const date = new Date(record.timestamp);
+      const timeSlotKey = TimeSlotUtils.getTimeSlotKey(date);
+
+      if (!grouped[timeSlotKey]) {
+        grouped[timeSlotKey] = [];
+      }
+      grouped[timeSlotKey].push(record);
     });
 
     const compressed: Record<string, any> = {};
-    Object.entries(grouped).forEach(([key, groupRecords]) => {
-      compressed[key] = {
+
+    Object.entries(grouped).forEach(([timeSlotKey, groupRecords]) => {
+      const availableCount = groupRecords.filter(
+        (r) => r.result === "available"
+      ).length;
+      const occupiedCount = groupRecords.filter(
+        (r) => r.result === "occupied" || r.result === "full"
+      ).length;
+
+      compressed[timeSlotKey] = {
         totalRecords: groupRecords.length,
-        occupiedCount: groupRecords.filter((r) => r.result === "occupied")
-          .length,
-        availableCount: groupRecords.filter((r) => r.result === "available")
-          .length,
-        timeRange: {
-          start: Math.min(...groupRecords.map((r) => r.timestamp)),
-          end: Math.max(...groupRecords.map((r) => r.timestamp)),
-        },
+        availableCount,
+        occupiedCount,
+        lastTimestamp: Math.max(...groupRecords.map((r) => r.timestamp)),
+        locationId: groupRecords[0].locationId,
       };
     });
 
@@ -274,50 +380,45 @@ export class StorageManager {
   }
 }
 
-// 预测算法
+// 高级预测器类（保留原有的复杂预测逻辑）
 export class Predictor {
   static predict(
     targetDate: Date,
     locationId: string,
     historicalRecords: ToiletRecord[]
   ): any {
-    const timeSlotKey = TimeSlotUtils.getTimeSlotKey(targetDate);
-
-    const relevantRecords = historicalRecords.filter(
-      (record) => record.locationId === locationId
-    );
-
-    const timeSlotRecords = relevantRecords.filter((record) => {
-      const recordTimeSlotKey = TimeSlotUtils.getTimeSlotKey(
-        new Date(record.timestamp)
-      );
-      return recordTimeSlotKey === timeSlotKey;
+    const timeSlotRecords = historicalRecords.filter((record) => {
+      const recordDate = new Date(record.timestamp);
+      const recordKey = TimeSlotUtils.getTimeSlotKey(recordDate);
+      const targetKey = TimeSlotUtils.getTimeSlotKey(targetDate);
+      return recordKey === targetKey && record.locationId === locationId;
     });
 
-    if (timeSlotRecords.length < 3) {
+    if (timeSlotRecords.length === 0) {
       return this.predictFromSimilarTimeSlots(
         targetDate,
         locationId,
-        relevantRecords
+        historicalRecords
       );
     }
 
+    const timeSlotKey = TimeSlotUtils.getTimeSlotKey(targetDate);
     const availabilityRate =
       StatisticsUtils.calculateAvailabilityRate(timeSlotRecords);
     const dataConsistency =
       StatisticsUtils.calculateDataConsistency(timeSlotRecords);
+    const trend = StatisticsUtils.calculateTrend(timeSlotRecords);
+    const seasonalAdjustment =
+      StatisticsUtils.calculateSeasonalAdjustment(targetDate);
+
     const confidence = StatisticsUtils.calculateConfidence(
       timeSlotRecords.length,
       dataConsistency
     );
 
-    const seasonalAdjustment =
-      StatisticsUtils.calculateSeasonalAdjustment(targetDate);
-    const trend = StatisticsUtils.calculateTrend(timeSlotRecords);
-
     const adjustedProbability = Math.max(
       0,
-      Math.min(1, availabilityRate + seasonalAdjustment * 0.2 + trend * 0.1)
+      Math.min(1, availabilityRate + trend * 0.1 + seasonalAdjustment * 0.2)
     );
 
     return {
@@ -467,53 +568,288 @@ export const debounce = <T extends (...args: any[]) => any>(
   };
 };
 
-// 简化的预测引擎
+// 重构的预测引擎
 export class PredictionEngine {
   private records: ToiletRecord[];
   private totalStalls: number;
+  private granularity: TimeGranularity;
 
   constructor(records: ToiletRecord[], totalStalls: number) {
     this.records = records;
     this.totalStalls = totalStalls;
+    this.granularity = TimeSlotUtils.determineGranularity(records.length);
   }
 
-  generateHourlyPredictions(): Array<{
-    timeSlot: string;
-    busyLevel: number;
-    confidence: number;
-  }> {
-    const predictions = [];
-
-    for (let hour = 6; hour < 22; hour++) {
-      const timeSlot = `${hour.toString().padStart(2, "0")}:00-${(hour + 1)
-        .toString()
-        .padStart(2, "0")}:00`;
-
-      // 获取该时段的历史记录
-      const hourRecords = this.records.filter((record) => {
-        const date = new Date(record.timestamp);
-        return date.getHours() === hour;
-      });
-
-      let busyLevel = 50; // 默认值
-      let confidence = 0.3; // 默认置信度
-
-      if (hourRecords.length > 0) {
-        // 计算该时段的繁忙程度
-        const fullCount = hourRecords.filter(
-          (r) => r.result === "full" || r.result === "occupied"
-        ).length;
-        busyLevel = (fullCount / hourRecords.length) * 100;
-        confidence = Math.min(0.9, hourRecords.length / 10);
-      }
-
-      predictions.push({
-        timeSlot,
-        busyLevel,
-        confidence,
-      });
+  // 生成最佳时段预测 - 根据精度调整预测数量
+  generateBestTimeSlots(maxResults: number = 5): BestTimeSlot[] {
+    // 根据颗粒度调整未来时段数量
+    let futureSlotCount: number;
+    switch (this.granularity) {
+      case "10min":
+        futureSlotCount = 48; // 8小时 * 6个10分钟段
+        break;
+      case "15min":
+        futureSlotCount = 32; // 8小时 * 4个15分钟段
+        break;
+      case "30min":
+      default:
+        futureSlotCount = 16; // 8小时 * 2个30分钟段
+        break;
     }
 
-    return predictions;
+    const futureSlots = TimeSlotUtils.getFutureTimeSlots(
+      futureSlotCount,
+      this.granularity
+    );
+
+    const predictions: PredictionResult[] = [];
+
+    for (const slot of futureSlots) {
+      const prediction = this.generateSlotPrediction(slot);
+      predictions.push(prediction);
+    }
+
+    // 筛选并排序最佳时段
+    const availableSlots = predictions
+      .filter((p) => p.busyLevel <= 60) // 只显示不太忙的时段
+      .map((prediction) => this.calculateSlotScore(prediction))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxResults);
+
+    return availableSlots;
+  }
+
+  // 生成单个时段预测
+  private generateSlotPrediction(slot: {
+    key: string;
+    date: Date;
+    startTime: Date;
+    endTime: Date;
+  }): PredictionResult {
+    // 获取该时段的历史记录
+    const slotRecords = this.records.filter((record) => {
+      const recordDate = new Date(record.timestamp);
+      const recordKey = TimeSlotUtils.getTimeSlotKey(
+        recordDate,
+        this.granularity
+      );
+      return recordKey === slot.key;
+    });
+
+    let busyLevel = 50; // 默认值
+    let confidence = 0.3; // 默认置信度
+
+    if (slotRecords.length > 0) {
+      // 计算该时段的繁忙程度
+      const fullCount = slotRecords.filter(
+        (r) => r.result === "full" || r.result === "occupied"
+      ).length;
+      busyLevel = (fullCount / slotRecords.length) * 100;
+
+      // 计算置信度
+      const dataConsistency =
+        StatisticsUtils.calculateDataConsistency(slotRecords);
+      confidence = StatisticsUtils.calculateConfidence(
+        slotRecords.length,
+        dataConsistency
+      );
+    }
+
+    // 评估数据质量
+    const dataQuality = DataQualityUtils.assessDataQuality(
+      slotRecords.length,
+      confidence
+    );
+
+    return {
+      timeSlot: TimeSlotUtils.getTimeSlotDisplay(slot.key, this.granularity),
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      busyLevel,
+      confidence,
+      sampleSize: slotRecords.length,
+      dataQuality,
+      granularity: this.granularity,
+      isRecommended: busyLevel <= 60 && confidence >= 0.4,
+    };
+  }
+
+  // 计算时段评分
+  private calculateSlotScore(prediction: PredictionResult): BestTimeSlot {
+    // 可用性评分 (busyLevel越低越好)
+    const availabilityScore = (100 - prediction.busyLevel) / 100;
+
+    // 置信度评分
+    const confidenceScore = prediction.confidence;
+
+    // 时间距离评分 (不要太远的未来)
+    const hoursFromNow =
+      (prediction.startTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    const timeScore = Math.max(0, 1 - hoursFromNow / 8); // 8小时内评分较高
+
+    // 综合评分
+    const score =
+      availabilityScore * 0.5 + confidenceScore * 0.3 + timeScore * 0.2;
+
+    // 生成推荐理由
+    let reason = "";
+    if (prediction.busyLevel <= 30) {
+      reason = "通常很空闲，推荐前往";
+    } else if (prediction.busyLevel <= 50) {
+      reason = "相对空闲，可以前往";
+    } else if (prediction.busyLevel <= 60) {
+      reason = "可能需要等待，但可接受";
+    }
+
+    if (prediction.dataQuality.level === "low") {
+      reason += "（数据较少，仅供参考）";
+    }
+
+    return {
+      prediction,
+      score,
+      reason,
+    };
+  }
+
+  // 获取当前时段预测（支持精确颗粒度）
+  getCurrentPrediction(): PredictionResult | null {
+    const now = new Date();
+    const currentKey = TimeSlotUtils.getTimeSlotKey(now, this.granularity);
+
+    const slot = {
+      key: currentKey,
+      date: now,
+      startTime: now,
+      endTime: new Date(
+        now.getTime() + this.getGranularityMinutes() * 60 * 1000
+      ),
+    };
+
+    return this.generateSlotPrediction(slot);
+  }
+
+  private getGranularityMinutes(): number {
+    switch (this.granularity) {
+      case "10min":
+        return 10;
+      case "15min":
+        return 15;
+      case "30min":
+      default:
+        return 30;
+    }
+  }
+
+  // 获取数据收集进度
+  getDataCollectionProgress(): DataCollectionProgress {
+    return DataQualityUtils.getDataCollectionProgress(this.records.length);
+  }
+}
+
+// 数据质量评估工具
+export class DataQualityUtils {
+  // 评估数据质量 - 调整数据量要求
+  static assessDataQuality(
+    sampleSize: number,
+    confidence: number
+  ): DataQuality {
+    if (sampleSize >= 50 && confidence >= 0.8) {
+      return {
+        level: "high",
+        color: "green",
+        text: `基于 ${sampleSize} 条记录，预测精度很高`,
+        icon: "🟢",
+        confidence,
+        sampleSize,
+      };
+    } else if (sampleSize >= 20 && confidence >= 0.6) {
+      return {
+        level: "medium",
+        color: "yellow",
+        text: `基于 ${sampleSize} 条记录，预测中等可靠`,
+        icon: "🟡",
+        confidence,
+        sampleSize,
+      };
+    } else {
+      return {
+        level: "low",
+        color: "orange",
+        text: `数据不足(${sampleSize}条)，建议多记录几次`,
+        icon: "🟠",
+        confidence,
+        sampleSize,
+      };
+    }
+  }
+
+  // 生成数据收集进度信息 - 调整目标记录数
+  static getDataCollectionProgress(
+    currentRecords: number
+  ): DataCollectionProgress {
+    const targetRecords = 50; // 调整目标记录数
+    const progressPercentage = Math.min(
+      100,
+      (currentRecords / targetRecords) * 100
+    );
+
+    let qualityLevel: DataQuality["level"];
+    let recommendations: string[];
+
+    if (currentRecords >= 100) {
+      qualityLevel = "high";
+      recommendations = [
+        "数据充足，已启用10分钟精度预测",
+        "预测准确度很高，可放心使用",
+      ];
+    } else if (currentRecords >= 50) {
+      qualityLevel = "high";
+      recommendations = [
+        "数据充足，预测准确度较高",
+        `再记录 ${100 - currentRecords} 条可升级到10分钟精度`,
+      ];
+    } else if (currentRecords >= 30) {
+      qualityLevel = "medium";
+      recommendations = [
+        "已启用15分钟精度预测",
+        `还需 ${50 - currentRecords} 条记录达到高精度预测`,
+      ];
+    } else if (currentRecords >= 20) {
+      qualityLevel = "medium";
+      recommendations = [
+        `还需 ${30 - currentRecords} 条记录启用15分钟精度`,
+        "当前使用30分钟精度预测",
+      ];
+    } else {
+      qualityLevel = "low";
+      recommendations = [
+        `至少需要 ${20 - currentRecords} 条记录才能提供可靠预测`,
+        "建议在一周内的不同时间记录",
+        "数据越多，预测精度越高",
+      ];
+    }
+
+    return {
+      currentRecords,
+      targetRecords,
+      progressPercentage,
+      qualityLevel,
+      recommendations,
+    };
+  }
+
+  // 获取质量指示器的CSS类名
+  static getQualityColorClass(level: DataQuality["level"]): string {
+    switch (level) {
+      case "high":
+        return "text-green-600 bg-green-50 border-green-200";
+      case "medium":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      case "low":
+        return "text-orange-600 bg-orange-50 border-orange-200";
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200";
+    }
   }
 }

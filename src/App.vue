@@ -72,6 +72,8 @@ const switchLocation = async (location: Location) => {
   if (predictionViewRef.value) {
     predictionViewRef.value.setCurrentLocation();
   }
+
+  await loadStats();
 };
 
 // 新增位置
@@ -92,8 +94,15 @@ const onLocationAdded = async (location: Location) => {
 // 加载统计数据
 const loadStats = async () => {
   try {
-    const records = await StorageManager.getRecords();
-    totalRecords.value = records.length;
+    if (currentLocation.value) {
+      const records = await StorageManager.getRecordsByLocation(
+        currentLocation.value.id
+      );
+      totalRecords.value = records.length;
+    } else {
+      const records = await StorageManager.getRecords();
+      totalRecords.value = records.length;
+    }
   } catch (error) {
     console.error("Load stats error:", error);
   }
@@ -112,6 +121,11 @@ const quickRecord = async (isFull: boolean) => {
     });
 
     await loadStats();
+
+    // 刷新预测数据
+    if (predictionViewRef.value) {
+      predictionViewRef.value.loadData();
+    }
 
     // 显示成功提示
     const message = isFull ? "已记录：厕所满了 😔" : "已记录：有空位 😊";
@@ -172,7 +186,7 @@ onMounted(() => {
               </li>
               <li class="flex items-start">
                 <span class="text-blue-600 mr-2 mt-0.5 font-bold">•</span>
-                <span>避开高峰期，提升如厕体验</span>
+                <span>数据越多，预测越准确（建议30+条记录）</span>
               </li>
             </ul>
           </div>
@@ -318,7 +332,7 @@ onMounted(() => {
               ]"
             >
               <div class="text-base mb-1">🔮</div>
-              <div>预测时段</div>
+              <div>智能预测</div>
             </button>
             <button
               @click="currentTab = 'record'"
@@ -388,7 +402,7 @@ onMounted(() => {
                     {{ totalRecords }}
                   </div>
                   <div class="text-xs text-blue-600 mt-1 font-medium">
-                    总记录数
+                    当前位置记录数
                   </div>
                 </div>
                 <div class="bg-green-50 rounded-xl p-4 border border-green-100">
@@ -397,6 +411,35 @@ onMounted(() => {
                   </div>
                   <div class="text-xs text-green-600 mt-1 font-medium">
                     位置数量
+                  </div>
+                </div>
+              </div>
+
+              <!-- 数据质量提示 - 更新精度说明 -->
+              <div class="mt-4 p-3 bg-gray-50 rounded-xl">
+                <div class="text-sm font-medium text-gray-900 mb-2">
+                  预测精度指南：
+                </div>
+                <div class="text-xs text-gray-700 space-y-1">
+                  <div class="flex items-center">
+                    <span
+                      class="w-2 h-2 bg-orange-500 rounded-full mr-2"
+                    ></span>
+                    <span>0-20条：30分钟精度，基础预测</span>
+                  </div>
+                  <div class="flex items-center">
+                    <span
+                      class="w-2 h-2 bg-yellow-500 rounded-full mr-2"
+                    ></span>
+                    <span>20-30条：30分钟精度，中等可靠</span>
+                  </div>
+                  <div class="flex items-center">
+                    <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                    <span>30-100条：15分钟精度，高可靠</span>
+                  </div>
+                  <div class="flex items-center">
+                    <span class="w-2 h-2 bg-green-600 rounded-full mr-2"></span>
+                    <span>100+条：10分钟精度，最高精度</span>
                   </div>
                 </div>
               </div>
@@ -412,7 +455,7 @@ onMounted(() => {
               数据仅本地存储，保护您的隐私
             </p>
             <p class="mt-1">
-              Version 0.1.0 | Made with <span class="text-red-600">❤️</span>
+              Version 0.2.0 | Made with <span class="text-red-600">❤️</span>
             </p>
           </div>
         </footer>
@@ -422,9 +465,23 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 移除theme函数调用，避免错误 */
 button:focus {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
 }
 </style>
