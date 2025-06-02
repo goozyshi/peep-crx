@@ -116,11 +116,11 @@ const quickRecord = async (isFull: boolean) => {
     // 显示成功提示
     const message = isFull ? "已记录：厕所满了 😔" : "已记录：有空位 😊";
 
-    // 简单的toast提示（可以替换为更好的toast组件）
+    // 简单的toast提示
     const toast = document.createElement("div");
     toast.textContent = message;
     toast.className =
-      "fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50";
+      "fixed top-3 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-xl shadow-xl z-50 font-medium text-sm";
     document.body.appendChild(toast);
 
     setTimeout(() => {
@@ -137,24 +137,43 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-    <div class="container mx-auto p-4 max-w-md">
+  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div class="container mx-auto p-3 max-w-md">
       <!-- 首次使用引导 -->
-      <div v-if="isFirstTime" class="text-center">
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div class="text-6xl mb-4">🚽</div>
-          <h1 class="text-2xl font-bold text-gray-800 mb-2">
+      <div v-if="isFirstTime" class="text-center animate-fade-in">
+        <div
+          class="bg-white rounded-2xl shadow-card border border-gray-100 p-6 mb-4"
+        >
+          <div class="text-6xl mb-4 animate-bounce">🚽</div>
+          <h1 class="text-2xl font-bold text-gray-900 mb-2">
             欢迎使用 PeepCRX
           </h1>
-          <p class="text-gray-600 mb-6">智能洗手间空位预测助手</p>
+          <p class="text-gray-700 mb-6">智能洗手间空位预测助手</p>
 
-          <div class="bg-blue-50 rounded-lg p-4 mb-6 text-left">
-            <h3 class="font-semibold text-blue-800 mb-2">🎯 如何使用：</h3>
-            <ul class="text-sm text-blue-700 space-y-1">
-              <li>• 首次设置你常去的厕所位置</li>
-              <li>• 每次去厕所发现没位置时记录一下</li>
-              <li>• 系统会学习并预测最佳如厕时间</li>
-              <li>• 避开高峰期，提升如厕体验</li>
+          <div
+            class="bg-blue-50 rounded-xl p-4 mb-6 text-left border border-blue-100"
+          >
+            <h3 class="font-bold text-blue-900 mb-3 flex items-center text-sm">
+              <span class="text-lg mr-2">🎯</span>
+              如何使用：
+            </h3>
+            <ul class="text-blue-800 space-y-2 text-sm">
+              <li class="flex items-start">
+                <span class="text-blue-600 mr-2 mt-0.5 font-bold">•</span>
+                <span>首次设置你常去的厕所位置</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-blue-600 mr-2 mt-0.5 font-bold">•</span>
+                <span>每次去厕所发现没位置时记录一下</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-blue-600 mr-2 mt-0.5 font-bold">•</span>
+                <span>系统会学习并预测最佳如厕时间</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-blue-600 mr-2 mt-0.5 font-bold">•</span>
+                <span>避开高峰期，提升如厕体验</span>
+              </li>
             </ul>
           </div>
         </div>
@@ -166,29 +185,30 @@ onMounted(() => {
       </div>
 
       <!-- 主界面 -->
-      <div v-else-if="showMainInterface">
+      <div v-else-if="showMainInterface" class="animate-fade-in">
         <!-- 头部 - 位置选择器 -->
-        <header class="mb-6">
-          <div class="bg-white rounded-xl shadow-lg p-4">
+        <header class="mb-4">
+          <div
+            class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
+          >
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
                 <div class="text-2xl">🚽</div>
                 <div>
-                  <h1 class="font-bold text-gray-800">PeepCRX</h1>
-                  <p class="text-xs text-gray-500">智能预测助手</p>
+                  <h1 class="font-bold text-gray-900 text-lg">PeepCRX</h1>
+                  <p class="text-xs text-gray-600">智能预测助手</p>
                 </div>
               </div>
 
               <!-- 位置切换按钮 -->
               <button
                 @click="showLocationPicker = !showLocationPicker"
-                class="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg transition-colors"
+                class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md font-medium"
               >
-                <span class="text-sm font-medium"
-                  >📍 {{ currentLocation?.name }}</span
-                >
+                <span class="text-sm">📍 {{ currentLocation?.name }}</span>
                 <svg
-                  class="w-4 h-4"
+                  class="w-3 h-3 transition-transform"
+                  :class="{ 'rotate-180': showLocationPicker }"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -204,33 +224,46 @@ onMounted(() => {
             </div>
 
             <!-- 位置选择下拉 -->
-            <div v-if="showLocationPicker" class="mt-4 border-t pt-4">
+            <div
+              v-if="showLocationPicker"
+              class="mt-4 pt-3 border-t border-gray-100"
+            >
               <div class="space-y-2">
                 <button
                   v-for="location in allLocations"
                   :key="location.id"
                   @click="switchLocation(location)"
                   :class="[
-                    'w-full text-left px-3 py-2 rounded-lg transition-colors',
+                    'w-full text-left px-3 py-2 rounded-lg transition-all duration-200 font-medium',
                     location.id === currentLocation?.id
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'hover:bg-gray-100',
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'hover:bg-gray-50 border border-gray-100 text-gray-900',
                   ]"
                 >
-                  <div class="font-medium">{{ location.name }}</div>
-                  <div class="text-sm text-gray-500">
+                  <div class="font-semibold text-sm">{{ location.name }}</div>
+                  <div
+                    :class="
+                      location.id === currentLocation?.id
+                        ? 'text-blue-100'
+                        : 'text-gray-600'
+                    "
+                    class="text-xs"
+                  >
                     {{ location.totalStalls }} 个坑位
                   </div>
                 </button>
 
                 <!-- 添加新位置按钮 -->
                 <button
-                  @click="currentTab = 'settings'"
-                  class="w-full text-left px-3 py-2 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-300 text-gray-500 hover:text-blue-500"
+                  @click="
+                    currentTab = 'settings';
+                    showLocationPicker = false;
+                  "
+                  class="w-full px-3 py-2 rounded-lg border border-dashed border-gray-300 hover:border-blue-400 text-gray-700 hover:text-blue-700 transition-all duration-200 hover:bg-blue-50"
                 >
                   <div class="text-center">
                     <span class="text-lg">+</span>
-                    <div class="text-sm">添加新位置</div>
+                    <div class="text-xs font-medium">添加新位置</div>
                   </div>
                 </button>
               </div>
@@ -239,66 +272,79 @@ onMounted(() => {
         </header>
 
         <!-- 快速记录按钮 -->
-        <div class="mb-6">
-          <div class="bg-white rounded-xl shadow-lg p-4">
-            <h3 class="font-semibold text-gray-800 mb-3 text-center">
-              🚀 快速记录当前状态
+        <div class="mb-4">
+          <div
+            class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
+          >
+            <h3
+              class="font-bold text-gray-900 mb-3 text-center text-sm flex items-center justify-center"
+            >
+              <span class="text-base mr-2">🚀</span>
+              快速记录当前状态
             </h3>
             <div class="grid grid-cols-2 gap-3">
               <button
                 @click="quickRecord(true)"
-                class="bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                class="bg-red-600 hover:bg-red-700 text-white py-3 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
               >
-                😔 厕所满了
+                <div class="text-xl mb-1">😔</div>
+                <div class="text-sm">厕所满了</div>
+                <div class="text-xs opacity-90">记录拥挤状态</div>
               </button>
               <button
                 @click="quickRecord(false)"
-                class="bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                class="bg-green-600 hover:bg-green-700 text-white py-3 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
               >
-                😊 有空位
+                <div class="text-xl mb-1">😊</div>
+                <div class="text-sm">有空位</div>
+                <div class="text-xs opacity-90">记录空闲状态</div>
               </button>
             </div>
           </div>
         </div>
 
         <!-- 导航标签 -->
-        <nav class="flex bg-white rounded-xl shadow-lg mb-6 overflow-hidden">
-          <button
-            @click="currentTab = 'predict'"
-            :class="[
-              'flex-1 py-3 px-4 text-sm font-medium transition-colors',
-              currentTab === 'predict'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50',
-            ]"
-          >
-            <div class="text-lg mb-1">🔮</div>
-            <div>预测时段</div>
-          </button>
-          <button
-            @click="currentTab = 'record'"
-            :class="[
-              'flex-1 py-3 px-4 text-sm font-medium transition-colors border-l border-gray-200',
-              currentTab === 'record'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50',
-            ]"
-          >
-            <div class="text-lg mb-1">📝</div>
-            <div>详细记录</div>
-          </button>
-          <button
-            @click="currentTab = 'settings'"
-            :class="[
-              'flex-1 py-3 px-4 text-sm font-medium transition-colors border-l border-gray-200',
-              currentTab === 'settings'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50',
-            ]"
-          >
-            <div class="text-lg mb-1">⚙️</div>
-            <div>设置</div>
-          </button>
+        <nav
+          class="bg-white rounded-2xl shadow-card border border-gray-100 mb-4 overflow-hidden"
+        >
+          <div class="flex">
+            <button
+              @click="currentTab = 'predict'"
+              :class="[
+                'flex-1 py-3 px-3 text-xs font-semibold transition-all duration-200',
+                currentTab === 'predict'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50',
+              ]"
+            >
+              <div class="text-base mb-1">🔮</div>
+              <div>预测时段</div>
+            </button>
+            <button
+              @click="currentTab = 'record'"
+              :class="[
+                'flex-1 py-3 px-3 text-xs font-semibold transition-all duration-200 border-l border-gray-100',
+                currentTab === 'record'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50',
+              ]"
+            >
+              <div class="text-base mb-1">📝</div>
+              <div>详细记录</div>
+            </button>
+            <button
+              @click="currentTab = 'settings'"
+              :class="[
+                'flex-1 py-3 px-3 text-xs font-semibold transition-all duration-200 border-l border-gray-100',
+                currentTab === 'settings'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50',
+              ]"
+            >
+              <div class="text-base mb-1">⚙️</div>
+              <div>设置</div>
+            </button>
+          </div>
         </nav>
 
         <!-- 内容区域 -->
@@ -327,22 +373,31 @@ onMounted(() => {
             />
 
             <!-- 使用统计 -->
-            <div class="bg-white rounded-xl shadow-lg p-4">
-              <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                📊 使用统计
+            <div
+              class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
+            >
+              <h3
+                class="text-lg font-bold text-gray-900 mb-4 flex items-center"
+              >
+                <span class="text-xl mr-2">📊</span>
+                使用统计
               </h3>
-              <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-blue-50 rounded-lg p-4">
-                  <div class="text-2xl font-bold text-blue-600">
+              <div class="grid grid-cols-2 gap-3 text-center">
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <div class="text-2xl font-bold text-blue-700">
                     {{ totalRecords }}
                   </div>
-                  <div class="text-sm text-blue-600 mt-1">总记录数</div>
+                  <div class="text-xs text-blue-600 mt-1 font-medium">
+                    总记录数
+                  </div>
                 </div>
-                <div class="bg-green-50 rounded-lg p-4">
-                  <div class="text-2xl font-bold text-green-600">
+                <div class="bg-green-50 rounded-xl p-4 border border-green-100">
+                  <div class="text-2xl font-bold text-green-700">
                     {{ allLocations.length }}
                   </div>
-                  <div class="text-sm text-green-600 mt-1">位置数量</div>
+                  <div class="text-xs text-green-600 mt-1 font-medium">
+                    位置数量
+                  </div>
                 </div>
               </div>
             </div>
@@ -350,9 +405,16 @@ onMounted(() => {
         </main>
 
         <!-- 底部信息 -->
-        <footer class="text-center mt-8 text-xs text-gray-500">
-          <p>🔒 数据仅本地存储，保护您的隐私</p>
-          <p class="mt-1">Version 0.1.0 | Made with ❤️</p>
+        <footer class="text-center mt-6 text-xs text-gray-600">
+          <div class="bg-white/80 rounded-xl p-3 border border-gray-100">
+            <p class="flex items-center justify-center">
+              <span class="text-green-600 mr-1">🔒</span>
+              数据仅本地存储，保护您的隐私
+            </p>
+            <p class="mt-1">
+              Version 0.1.0 | Made with <span class="text-red-600">❤️</span>
+            </p>
+          </div>
         </footer>
       </div>
     </div>
@@ -360,25 +422,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 添加一些过渡动画 */
-.container {
-  transition: all 0.3s ease;
-}
-
-/* Toast动画可以通过CSS类来优化 */
-@keyframes slideInDown {
-  from {
-    transform: translate(-50%, -100%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0);
-    opacity: 1;
-  }
-}
-
-/* 可以为toast添加动画类 */
-.toast-enter {
-  animation: slideInDown 0.3s ease;
+/* 移除theme函数调用，避免错误 */
+button:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 </style>

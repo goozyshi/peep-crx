@@ -1,55 +1,67 @@
 <template>
   <div class="space-y-4">
     <!-- 详细记录按钮 -->
-    <div class="bg-white rounded-xl shadow-lg p-6">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4 text-center">
-        📝 详细记录
+    <div class="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+      <h2
+        class="text-lg font-bold text-gray-900 mb-4 text-center flex items-center justify-center"
+      >
+        <span class="text-xl mr-2">📝</span>
+        详细记录
       </h2>
 
       <div class="grid grid-cols-2 gap-4">
         <button
           @click="addRecord(true)"
           :disabled="!currentLocation || isLoading"
-          class="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white py-4 px-4 rounded-lg font-medium transition-colors"
+          class="bg-danger-600 hover:bg-danger-700 disabled:bg-gray-400 text-white py-4 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none"
         >
-          <div class="text-2xl mb-1">😔</div>
-          <div>厕所满了</div>
-          <div class="text-xs opacity-90">记录拥挤状态</div>
+          <div class="text-2xl mb-2">😔</div>
+          <div class="text-sm">厕所满了</div>
+          <div class="text-xs opacity-90 mt-1">记录拥挤状态</div>
         </button>
 
         <button
           @click="addRecord(false)"
           :disabled="!currentLocation || isLoading"
-          class="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white py-4 px-4 rounded-lg font-medium transition-colors"
+          class="bg-success-600 hover:bg-success-700 disabled:bg-gray-400 text-white py-4 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none"
         >
-          <div class="text-2xl mb-1">😊</div>
-          <div>有空位</div>
-          <div class="text-xs opacity-90">记录空闲状态</div>
+          <div class="text-2xl mb-2">😊</div>
+          <div class="text-sm">有空位</div>
+          <div class="text-xs opacity-90 mt-1">记录空闲状态</div>
         </button>
       </div>
 
       <div v-if="isLoading" class="text-center mt-4">
-        <div
-          class="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"
-        ></div>
+        <div class="relative mx-auto w-6 h-6">
+          <div
+            class="absolute inset-0 rounded-full border-2 border-primary-200"
+          ></div>
+          <div
+            class="absolute inset-0 rounded-full border-2 border-primary-600 border-t-transparent animate-spin"
+          ></div>
+        </div>
+        <p class="text-gray-600 mt-2 font-medium text-sm">记录中...</p>
       </div>
     </div>
 
     <!-- 最近记录 -->
     <div
       v-if="recentRecords.length > 0"
-      class="bg-white rounded-xl shadow-lg p-6"
+      class="bg-white rounded-2xl shadow-card border border-gray-100 p-4"
     >
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">⏰ 最近记录</h3>
+      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+        <span class="text-xl mr-2">⏰</span>
+        最近记录
+      </h3>
 
-      <div class="space-y-3">
+      <div class="space-y-2">
         <div
           v-for="record in recentRecords"
           :key="record.id"
-          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+          class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all duration-200"
         >
           <div class="flex items-center space-x-3">
-            <div class="text-lg">
+            <div class="text-xl">
               {{
                 record.result === "full" || record.result === "occupied"
                   ? "😔"
@@ -57,14 +69,14 @@
               }}
             </div>
             <div>
-              <div class="font-medium text-gray-800">
+              <div class="font-semibold text-gray-900 text-sm">
                 {{
                   record.result === "full" || record.result === "occupied"
                     ? "厕所满了"
                     : "有空位"
                 }}
               </div>
-              <div class="text-sm text-gray-500">
+              <div class="text-xs text-gray-600">
                 {{ formatTime(record.timestamp) }}
               </div>
             </div>
@@ -72,7 +84,7 @@
 
           <button
             @click="deleteRecord(record.id)"
-            class="text-red-500 hover:text-red-700 p-1"
+            class="text-danger-500 hover:text-danger-700 p-1 rounded-lg hover:bg-danger-50 transition-all duration-200"
             title="删除记录"
           >
             <svg
@@ -96,20 +108,46 @@
     <!-- 空状态 -->
     <div
       v-else-if="!isLoading"
-      class="bg-white rounded-xl shadow-lg p-6 text-center"
+      class="bg-white rounded-2xl shadow-card border border-gray-100 p-5 text-center"
     >
-      <div class="text-4xl mb-3">📊</div>
-      <h3 class="font-semibold text-gray-800 mb-2">暂无记录</h3>
-      <p class="text-gray-500 text-sm">
-        开始记录厕所使用情况，<br />
-        帮助系统学习并生成预测
-      </p>
+      <div class="text-4xl mb-4">📊</div>
+      <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <h3 class="font-bold text-gray-900 mb-2">暂无记录</h3>
+        <p class="text-gray-600 text-sm">
+          开始记录厕所使用情况，<br />
+          帮助系统学习并生成预测
+        </p>
+      </div>
+    </div>
+
+    <!-- 记录统计卡片 -->
+    <div
+      v-if="recentRecords.length > 0"
+      class="bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="text-xl">📈</div>
+          <div>
+            <div class="font-bold text-primary-800 text-sm">记录统计</div>
+            <div class="text-xs text-primary-700">
+              最近{{ recentRecords.length }}条记录
+            </div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-xl font-bold text-primary-800">
+            {{ getSuccessRate() }}%
+          </div>
+          <div class="text-xs text-primary-700">空位成功率</div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { StorageManager } from "../utils";
 import type { Location, ToiletRecord } from "../types";
 
@@ -121,6 +159,15 @@ const props = defineProps<{
 // 组件状态
 const recentRecords = ref<ToiletRecord[]>([]);
 const isLoading = ref(false);
+
+// 计算成功率
+const getSuccessRate = () => {
+  if (recentRecords.value.length === 0) return 0;
+  const availableCount = recentRecords.value.filter(
+    (r) => r.result === "available"
+  ).length;
+  return Math.round((availableCount / recentRecords.value.length) * 100);
+};
 
 // 添加记录
 const addRecord = async (isFull: boolean) => {
@@ -194,9 +241,9 @@ const formatTime = (timestamp: number) => {
 const showToast = (message: string, type: string = "success") => {
   const toast = document.createElement("div");
   toast.textContent = message;
-  toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 ${
-    type === "error" ? "bg-red-500" : "bg-green-500"
-  } text-white`;
+  toast.className = `fixed top-3 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-xl shadow-xl z-50 font-medium text-sm ${
+    type === "error" ? "bg-danger-600 text-white" : "bg-gray-900 text-white"
+  }`;
   document.body.appendChild(toast);
 
   setTimeout(() => {

@@ -1,4 +1,58 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 主色调 */
+    --google-blue: #4285f4;
+    --google-red: #ea4335;
+    --google-yellow: #fbbc05;
+    --google-green: #34a853;
+    --color-primary-50: 239 246 255;
+    --color-primary-100: 219 234 254;
+    --color-primary-200: 191 219 254;
+    --color-primary-300: 147 197 253;
+    --color-primary-400: 96 165 250;
+    --color-primary-500: 59 130 246;
+    --color-primary-600: 37 99 235;
+    --color-primary-700: 29 78 216;
+    --color-primary-800: 30 64 175;
+    --color-primary-900: 30 58 138;
+    --color-primary-950: 23 37 84;
+
+    /* 成功色 */
+    --color-success-50: 240 253 244;
+    --color-success-100: 220 252 231;
+    --color-success-200: 187 247 208;
+    --color-success-500: 16 185 129;
+    --color-success-600: 5 150 105;
+    --color-success-700: 4 120 87;
+    --color-success-800: 6 95 70;
+
+    /* 危险色 */
+    --color-danger-50: 254 242 242;
+    --color-danger-100: 254 226 226;
+    --color-danger-200: 254 202 202;
+    --color-danger-500: 220 38 38;
+    --color-danger-600: 185 28 28;
+    --color-danger-700: 153 27 27;
+    --color-danger-800: 127 29 29;
+
+    /* 警告色 */
+    --color-warning-50: 255 251 235;
+    --color-warning-100: 254 243 199;
+    --color-warning-200: 253 230 138;
+    --color-warning-500: 253 230 138;
+    --color-warning-600: 253 230 138;
+    --color-warning-700: 253 230 138;
+    --color-warning-800: 253 230 138;
+    --color-warning-900: 253 230 138;
+    --color-warning-950: 253 230 138;
+  }
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

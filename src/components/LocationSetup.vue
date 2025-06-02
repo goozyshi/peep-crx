@@ -1,89 +1,131 @@
 <template>
-  <div class="bg-white rounded-xl shadow-lg p-6">
+  <div class="bg-white rounded-2xl shadow-google border border-gray-200 p-5">
     <div class="text-center mb-6" v-if="isFirstSetup">
-      <h2 class="text-xl font-bold text-gray-800 mb-2">🎯 设置你的第一个位置</h2>
-      <p class="text-gray-600 text-sm">告诉我们你常去的厕所位置和坑位数量</p>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">
+        🎯 设置你的第一个位置
+      </h2>
+      <p class="text-gray-700 text-sm">告诉我们你常去的厕所位置和坑位数量</p>
     </div>
-    
+
     <div class="text-center mb-6" v-else>
-      <h3 class="text-lg font-semibold text-gray-800 mb-2">➕ 添加新位置</h3>
-      <p class="text-gray-600 text-sm">设置新的厕所位置</p>
+      <h3
+        class="text-lg font-bold text-gray-900 mb-2 flex items-center justify-center"
+      >
+        <span class="text-xl mr-2">➕</span>
+        添加新位置
+      </h3>
+      <p class="text-gray-700 text-sm">设置新的厕所位置</p>
     </div>
-    
+
     <form @submit.prevent="submitLocation" class="space-y-4">
       <!-- 位置名称 -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          📍 位置名称
+        <label
+          class="block text-sm font-bold text-gray-800 mb-2 flex items-center"
+        >
+          <span class="text-base mr-2">📍</span>
+          位置名称
         </label>
         <input
           v-model="locationName"
           type="text"
           placeholder="例如：公司3楼男厕所"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="input w-full px-3 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
           required
         />
       </div>
-      
+
       <!-- 坑位数量 -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          🚽 坑位数量
+        <label
+          class="block text-sm font-bold text-gray-800 mb-2 flex items-center"
+        >
+          <span class="text-base mr-2">🚽</span>
+          坑位数量
         </label>
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
+          <!-- Google Blue按钮 -->
           <button
             type="button"
             @click="totalStalls = Math.max(1, totalStalls - 1)"
-            class="w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold"
+            class="btn btn-google-blue w-10 h-10 rounded-xl font-bold"
           >
-            -
+            −
           </button>
           <input
             v-model.number="totalStalls"
             type="number"
             min="1"
             max="20"
-            class="flex-1 text-center px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="input flex-1 text-center px-3 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-bold"
           />
           <button
             type="button"
             @click="totalStalls = Math.min(20, totalStalls + 1)"
-            class="w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold"
+            class="btn btn-google-blue w-10 h-10 rounded-xl font-bold"
           >
             +
           </button>
         </div>
-        <p class="text-xs text-gray-500 mt-1">大便坑位数量（不包括小便池）</p>
+        <p class="text-xs text-gray-600 mt-1 text-center">
+          大便坑位数量（不包括小便池）
+        </p>
       </div>
-      
-      <!-- 错误提示 -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-3">
-        <p class="text-red-700 text-sm">{{ error }}</p>
+
+      <!-- 错误提示 - Google Red -->
+      <div
+        v-if="error"
+        class="bg-red-50 border-2 border-red-200 rounded-xl p-3"
+      >
+        <div class="flex items-center">
+          <span class="text-google-red text-lg mr-2">⚠️</span>
+          <p class="text-red-700 font-medium text-sm">{{ error }}</p>
+        </div>
       </div>
-      
-      <!-- 提交按钮 -->
+
+      <!-- 提交按钮 - Google Blue -->
       <button
         type="submit"
         :disabled="isSubmitting"
-        class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+        class="btn btn-google-blue w-full py-3 px-4 rounded-xl font-bold disabled:opacity-50"
       >
-        <span v-if="isSubmitting">添加中...</span>
-        <span v-else-if="isFirstSetup">🚀 开始使用</span>
-        <span v-else">➕ 添加位置</span>
+        <span v-if="isSubmitting" class="flex items-center justify-center">
+          <div
+            class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+          ></div>
+          添加中...
+        </span>
+        <span v-else-if="isFirstSetup" class="flex items-center justify-center">
+          <span class="text-lg mr-2">🚀</span>
+          开始使用
+        </span>
+        <span v-else class="flex items-center justify-center">
+          <span class="text-lg mr-2">➕</span>
+          添加位置
+        </span>
       </button>
     </form>
-    
-    <!-- 首次使用的额外说明 -->
-    <div v-if="isFirstSetup" class="mt-6 pt-6 border-t border-gray-200">
-      <div class="bg-yellow-50 rounded-lg p-4">
+
+    <!-- 首次使用的额外说明 - Google Yellow -->
+    <div v-if="isFirstSetup" class="mt-6 pt-4 border-t border-gray-200">
+      <div class="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
         <div class="flex items-start space-x-3">
-          <div class="text-yellow-500 text-lg">⚠️</div>
-          <div class="text-sm text-yellow-700">
-            <div class="font-semibold mb-1">重要提示：</div>
+          <div class="text-google-yellow text-lg">⚠️</div>
+          <div class="text-yellow-800">
+            <div class="font-bold mb-2 text-sm">重要提示：</div>
             <ul class="space-y-1 text-xs">
-              <li>• 只需要设置一次，后续可以添加更多位置</li>
-              <li>• 坑位数量影响预测准确性，请如实填写</li>
-              <li>• 所有数据仅存储在您的设备上</li>
+              <li class="flex items-start">
+                <span class="text-google-yellow mr-2 mt-0.5 font-bold">•</span>
+                <span>只需要设置一次，后续可以添加更多位置</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-google-yellow mr-2 mt-0.5 font-bold">•</span>
+                <span>坑位数量影响预测准确性，请如实填写</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-google-yellow mr-2 mt-0.5 font-bold">•</span>
+                <span>所有数据仅存储在您的设备上</span>
+              </li>
             </ul>
           </div>
         </div>
@@ -104,7 +146,7 @@ defineProps<{
 
 // Events
 const emit = defineEmits<{
-  'location-added': [location: Location];
+  "location-added": [location: Location];
 }>();
 
 // 表单状态
@@ -119,15 +161,15 @@ const submitLocation = async () => {
     error.value = "请输入位置名称";
     return;
   }
-  
+
   if (totalStalls.value < 1 || totalStalls.value > 20) {
     error.value = "坑位数量必须在1-20之间";
     return;
   }
-  
+
   isSubmitting.value = true;
   error.value = "";
-  
+
   try {
     const location: Location = {
       id: Date.now().toString(),
@@ -135,16 +177,15 @@ const submitLocation = async () => {
       totalStalls: totalStalls.value,
       createdAt: Date.now(),
     };
-    
+
     await StorageManager.addLocation(location);
-    
+
     // 重置表单
     locationName.value = "";
     totalStalls.value = 3;
-    
+
     // 通知父组件
-    emit('location-added', location);
-    
+    emit("location-added", location);
   } catch (err) {
     error.value = "添加位置失败，请重试";
     console.error("Add location error:", err);
