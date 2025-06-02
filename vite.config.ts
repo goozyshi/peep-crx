@@ -32,6 +32,6 @@ export default defineConfig({
 
   // 确保在开发模式下也能正确处理扩展
   define: {
-    __DEV__: JSON.stringify(process.env.NODE_ENV === "development"),
+    __DEV__: JSON.stringify(true),
   },
 });

@@ -184,6 +184,57 @@ export class ChineseCalendar {
       type === "compensatory_holiday"
     );
   }
+
+  // 获取即将到来的节假日
+  static getUpcomingHolidays(count: number = 3): ChineseDateInfo[] {
+    const holidays: ChineseDateInfo[] = [];
+    const today = new Date();
+    const todayStr = this.formatDate(today);
+
+    // 从缓存中获取未来的节假日
+    const sortedHolidays = Array.from(this.holidayCache.values())
+      .filter(
+        (holiday) =>
+          holiday.date >= todayStr &&
+          (holiday.type === "holiday" ||
+            holiday.type === "compensatory_holiday")
+      )
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, count);
+
+    return sortedHolidays;
+  }
+
+  // 获取当月特殊日期
+  static getCurrentMonthSpecialDates(): ChineseDateInfo[] {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    const specialDates: ChineseDateInfo[] = [];
+
+    for (
+      let date = new Date(firstDay);
+      date <= lastDay;
+      date.setDate(date.getDate() + 1)
+    ) {
+      const dateStr = this.formatDate(date);
+      const holiday = this.holidayCache.get(dateStr);
+
+      if (
+        holiday &&
+        (holiday.type === "holiday" ||
+          holiday.type === "makeup_workday" ||
+          holiday.type === "compensatory_holiday")
+      ) {
+        specialDates.push(holiday);
+      }
+    }
+
+    return specialDates.sort((a, b) => a.date.localeCompare(b.date));
+  }
 }
 
 // 初始化节假日缓存
