@@ -45,7 +45,7 @@
           <button
             type="button"
             @click="totalStalls = Math.max(1, totalStalls - 1)"
-            class="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors"
+            class="flex items-center justify-center w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold text-sm transition-colors"
           >
             −
           </button>
@@ -59,7 +59,7 @@
           <button
             type="button"
             @click="totalStalls = Math.min(20, totalStalls + 1)"
-            class="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors"
+            class="flex items-center justify-center w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold text-sm transition-colors"
           >
             +
           </button>
@@ -81,7 +81,7 @@
       <button
         type="submit"
         :disabled="isSubmitting"
-        class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm disabled:opacity-50 transition-colors"
+        class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-sm disabled:opacity-50 transition-colors"
       >
         <span v-if="isSubmitting" class="flex items-center justify-center">
           <div
@@ -97,11 +97,11 @@
     <!-- 首次使用的简化说明 -->
     <div v-if="isFirstSetup" class="mt-3 pt-3 border-t border-gray-100">
       <div class="bg-blue-50 rounded-lg p-2 border border-blue-100">
-        <div class="flex items-start space-x-2">
-          <div class="text-blue-600 text-sm">💡</div>
+        <div class="flex items-center space-x-2 text-left">
+          <div class="text-blue-600 text-xl">💡</div>
           <div class="text-blue-800 text-xs">
             <div class="font-medium mb-1">说明：</div>
-            <ul class="space-y-0.5">
+            <ul class="space-y-0.5 text-gray-600">
               <li>• 准确填写坑位数量有助于提升预测精度</li>
               <li>• 数据仅保存在本地，保护隐私</li>
             </ul>

@@ -775,8 +775,8 @@ export class PredictionEngine {
     this.granularity = TimeSlotUtils.determineGranularity(records.length);
   }
 
-  // 生成最佳时段预测 - 根据精度调整预测数量
-  generateBestTimeSlots(maxResults: number = 5): BestTimeSlot[] {
+  // 生成最佳时段预测 - 优化为3个非连续时段
+  generateBestTimeSlots(maxResults: number = 3): BestTimeSlot[] {
     // 根据颗粒度调整未来时段数量
     let futureSlotCount: number;
     switch (this.granularity) {
@@ -808,10 +808,62 @@ export class PredictionEngine {
     const availableSlots = predictions
       .filter((p) => p.busyLevel <= 60) // 只显示不太忙的时段
       .map((prediction) => this.calculateSlotScore(prediction))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxResults);
+      .sort((a, b) => b.score - a.score);
 
-    return availableSlots;
+    // 选择非连续的最佳时段
+    return this.selectNonConsecutiveSlots(availableSlots, maxResults);
+  }
+
+  // 选择非连续的时段，确保推荐的时段之间有合理间隔
+  private selectNonConsecutiveSlots(
+    scoredSlots: BestTimeSlot[],
+    maxResults: number
+  ): BestTimeSlot[] {
+    if (scoredSlots.length === 0) return [];
+
+    const selected: BestTimeSlot[] = [];
+    const minIntervalMinutes = this.getMinIntervalMinutes(); // 根据颗粒度确定最小间隔
+
+    for (const slot of scoredSlots) {
+      if (selected.length >= maxResults) break;
+
+      // 检查与已选时段的时间间隔
+      const hasConflict = selected.some((selectedSlot) =>
+        this.areTimeSlotsTooClose(slot, selectedSlot, minIntervalMinutes)
+      );
+
+      if (!hasConflict) {
+        selected.push(slot);
+      }
+    }
+
+    return selected;
+  }
+
+  // 检查两个时段是否过于接近
+  private areTimeSlotsTooClose(
+    slot1: BestTimeSlot,
+    slot2: BestTimeSlot,
+    minIntervalMinutes: number
+  ): boolean {
+    const time1 = slot1.prediction.startTime.getTime();
+    const time2 = slot2.prediction.startTime.getTime();
+    const timeDiffMinutes = Math.abs(time1 - time2) / (1000 * 60);
+
+    return timeDiffMinutes < minIntervalMinutes;
+  }
+
+  // 根据颗粒度确定最小时间间隔
+  private getMinIntervalMinutes(): number {
+    switch (this.granularity) {
+      case "10min":
+        return 30; // 10分钟颗粒度要求至少30分钟间隔
+      case "15min":
+        return 45; // 15分钟颗粒度要求至少45分钟间隔
+      case "30min":
+      default:
+        return 60; // 30分钟颗粒度要求至少60分钟间隔
+    }
   }
 
   // 生成单个时段预测

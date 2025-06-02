@@ -1,49 +1,5 @@
 <template>
   <div class="space-y-4">
-    <!-- 详细记录按钮 -->
-    <div class="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
-      <h2
-        class="text-lg font-bold text-gray-900 mb-4 text-center flex items-center justify-center"
-      >
-        <span class="text-xl mr-2">📝</span>
-        详细记录
-      </h2>
-
-      <div class="grid grid-cols-2 gap-4">
-        <button
-          @click="addRecord(true)"
-          :disabled="!currentLocation || isLoading"
-          class="bg-danger-600 hover:bg-danger-700 disabled:bg-gray-400 text-white py-4 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none"
-        >
-          <div class="text-2xl mb-2">😔</div>
-          <div class="text-sm">厕所满了</div>
-          <div class="text-xs opacity-90 mt-1">记录拥挤状态</div>
-        </button>
-
-        <button
-          @click="addRecord(false)"
-          :disabled="!currentLocation || isLoading"
-          class="bg-success-600 hover:bg-success-700 disabled:bg-gray-400 text-white py-4 px-3 rounded-xl font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none"
-        >
-          <div class="text-2xl mb-2">😊</div>
-          <div class="text-sm">有空位</div>
-          <div class="text-xs opacity-90 mt-1">记录空闲状态</div>
-        </button>
-      </div>
-
-      <div v-if="isLoading" class="text-center mt-4">
-        <div class="relative mx-auto w-6 h-6">
-          <div
-            class="absolute inset-0 rounded-full border-2 border-primary-200"
-          ></div>
-          <div
-            class="absolute inset-0 rounded-full border-2 border-primary-600 border-t-transparent animate-spin"
-          ></div>
-        </div>
-        <p class="text-gray-600 mt-2 font-medium text-sm">记录中...</p>
-      </div>
-    </div>
-
     <!-- 最近记录 -->
     <div
       v-if="recentRecords.length > 0"

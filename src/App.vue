@@ -17,6 +17,7 @@ const currentLocation = ref<Location | null>(null);
 const allLocations = ref<Location[]>([]);
 const currentTab = ref("predict");
 const showLocationPicker = ref(false);
+const showFunctionMenu = ref(false);
 
 // 统计数据
 const totalRecords = ref(0);
@@ -146,7 +147,7 @@ const quickRecord = async (isFull: boolean) => {
     const toast = document.createElement("div");
     toast.textContent = message;
     toast.className =
-      "fixed top-3 left-1/2 transform -translate-x-1/2 bg-gray-900  px-4 py-2 rounded-xl shadow-xl z-50 font-medium text-sm";
+      "fixed top-3 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-xl shadow-xl z-50 font-medium text-sm";
     document.body.appendChild(toast);
 
     setTimeout(() => {
@@ -155,6 +156,12 @@ const quickRecord = async (isFull: boolean) => {
   } catch (error) {
     console.error("Quick record error:", error);
   }
+};
+
+// 切换功能标签
+const switchTab = (tab: string) => {
+  currentTab.value = tab;
+  showFunctionMenu.value = false;
 };
 
 // 计算预测精度
@@ -226,9 +233,9 @@ onUnmounted(() => {
 
 <template>
   <div class="popup-container">
-    <div class="container mx-auto p-2 max-w-full">
+    <div class="container mx-auto max-w-full">
       <!-- 首次使用引导 -->
-      <div v-if="isFirstTime" class="text-center animate-fade-in">
+      <div v-if="isFirstTime" class="text-center animate-fade-in p-4">
         <div
           class="bg-white rounded-2xl shadow-card border border-gray-100 p-6 mb-4"
         >
@@ -272,29 +279,104 @@ onUnmounted(() => {
         />
       </div>
 
-      <!-- 主界面 - 简化版 -->
-      <div v-else-if="showMainInterface" class="animate-fade-in space-y-3">
-        <!-- 头部 - 紧凑版 -->
-        <header>
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <div class="text-lg">🚽</div>
-                <div>
-                  <h1 class="font-bold text-gray-900 text-sm">PeepCRX</h1>
-                  <p class="text-xs text-gray-600">智能预测</p>
+      <!-- 主界面 - 整合工具栏版 -->
+      <div v-else-if="showMainInterface" class="animate-fade-in">
+        <!-- 整合工具栏 -->
+        <header class="bg-white border-b border-gray-200 p-2">
+          <div class="flex items-center justify-between">
+            <!-- 左侧：Logo + 位置选择 -->
+            <div class="flex items-center space-x-2 min-w-0 flex-1">
+              <div class="flex items-center space-x-1 flex-shrink-0">
+                <div class="font-bold text-gray-900 leading-none text-2xl">
+                  🚽 PeepCRX
                 </div>
               </div>
 
-              <!-- 位置选择器 -->
+              <!-- 位置选择器 - 超紧凑版 -->
+              <div class="relative min-w-0 flex-1">
+                <button
+                  @click="
+                    showLocationPicker = !showLocationPicker;
+                    showFunctionMenu = false;
+                  "
+                  class="flex items-center space-x-1 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-xs w-full justify-between min-w-0"
+                >
+                  <span class="text-gray-700 truncate flex-1 text-left"
+                    >📍 {{ currentLocation?.name }}</span
+                  >
+                  <svg
+                    class="w-2.5 h-2.5 text-gray-500 transition-transform flex-shrink-0"
+                    :class="{ 'rotate-180': showLocationPicker }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </button>
+
+                <!-- 位置下拉菜单 -->
+                <div
+                  v-if="showLocationPicker"
+                  class="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-20 w-full min-w-32"
+                >
+                  <div class="p-2 space-y-1">
+                    <button
+                      v-for="location in allLocations"
+                      :key="location.id"
+                      @click="switchLocation(location)"
+                      :class="[
+                        'w-full text-left px-2 py-1 rounded text-xs transition-all',
+                        location.id === currentLocation?.id
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'hover:bg-gray-50 text-gray-900',
+                      ]"
+                    >
+                      <div class="font-semibold truncate">
+                        {{ location.name }}
+                      </div>
+                      <div
+                        :class="
+                          location.id === currentLocation?.id
+                            ? 'text-blue-500'
+                            : 'text-gray-500'
+                        "
+                        class="text-xs"
+                      >
+                        {{ location.totalStalls }} 个坑位
+                      </div>
+                    </button>
+
+                    <button
+                      @click="
+                        switchTab('settings');
+                        showLocationPicker = false;
+                      "
+                      class="w-full px-2 py-1 rounded border border-dashed border-gray-300 hover:border-blue-400 text-gray-700 hover:text-blue-700 transition-all text-xs"
+                    >
+                      + 添加新位置
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧：功能菜单 -->
+            <div class="relative flex-shrink-0">
               <button
-                @click="showLocationPicker = !showLocationPicker"
-                class="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-lg transition-colors text-xs font-medium"
+                @click="
+                  showFunctionMenu = !showFunctionMenu;
+                  showLocationPicker = false;
+                "
+                class="flex items-center text-gray-600 hover:text-gray-900 transition-colors p-1"
               >
-                <span>📍 {{ currentLocation?.name }}</span>
                 <svg
-                  class="w-3 h-3 transition-transform"
-                  :class="{ 'rotate-180': showLocationPicker }"
+                  class="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -303,140 +385,79 @@ onUnmounted(() => {
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="2"
-                    d="M19 9l-7 7-7-7"
+                    d="M4 6h16M4 12h16M4 18h16"
                   ></path>
                 </svg>
               </button>
-            </div>
 
-            <!-- 位置下拉菜单 -->
-            <div
-              v-if="showLocationPicker"
-              class="mt-3 pt-3 border-t border-gray-100"
-            >
-              <div class="space-y-1">
-                <button
-                  v-for="location in allLocations"
-                  :key="location.id"
-                  @click="switchLocation(location)"
-                  :class="[
-                    'w-full text-left px-2 py-1 rounded text-xs font-medium transition-all',
-                    location.id === currentLocation?.id
-                      ? 'bg-blue-600 '
-                      : 'hover:bg-gray-50 text-gray-900',
-                  ]"
-                >
-                  <div class="font-semibold">{{ location.name }}</div>
-                  <div
-                    :class="
-                      location.id === currentLocation?.id
-                        ? 'text-primary-500'
-                        : 'text-gray-500'
-                    "
-                    class="text-xs"
+              <!-- 功能下拉菜单 -->
+              <div
+                v-if="showFunctionMenu"
+                class="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-20 w-24"
+              >
+                <div class="p-1">
+                  <button
+                    @click="switchTab('predict')"
+                    :class="[
+                      'w-full text-left px-3 py-2 rounded text-xs transition-all flex items-center space-x-2',
+                      currentTab === 'predict'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'hover:bg-gray-50 text-gray-700',
+                    ]"
                   >
-                    {{ location.totalStalls }} 个坑位
-                  </div>
-                </button>
-
-                <button
-                  @click="
-                    currentTab = 'settings';
-                    showLocationPicker = false;
-                  "
-                  class="w-full px-2 py-1 rounded border border-dashed border-gray-300 hover:border-blue-400 text-gray-700 hover:text-blue-700 transition-all text-xs"
-                >
-                  + 添加新位置
-                </button>
-              </div>
-            </div>
-
-            <!-- 视觉降级的导航 -->
-            <div class="mt-3 pt-3 border-t border-gray-100">
-              <div class="flex items-center justify-center space-x-1">
-                <button
-                  @click="currentTab = 'predict'"
-                  :class="[
-                    'px-2 py-1 rounded text-xs font-medium transition-all',
-                    currentTab === 'predict'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
-                  ]"
-                >
-                  预测
-                </button>
-                <span class="text-gray-300 text-xs">|</span>
-                <button
-                  @click="currentTab = 'record'"
-                  :class="[
-                    'px-2 py-1 rounded text-xs font-medium transition-all',
-                    currentTab === 'record'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
-                  ]"
-                >
-                  记录
-                </button>
-                <span class="text-gray-300 text-xs">|</span>
-                <button
-                  @click="currentTab = 'settings'"
-                  :class="[
-                    'px-2 py-1 rounded text-xs font-medium transition-all',
-                    currentTab === 'settings'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
-                  ]"
-                >
-                  设置
-                </button>
+                    <span class="text-xs">🔮</span>
+                    <span>预测</span>
+                  </button>
+                  <button
+                    @click="switchTab('record')"
+                    :class="[
+                      'w-full text-left px-3 py-2 rounded text-xs transition-all flex items-center space-x-2',
+                      currentTab === 'record'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'hover:bg-gray-50 text-gray-700',
+                    ]"
+                  >
+                    <span class="text-xs">📝</span>
+                    <span>记录</span>
+                  </button>
+                  <button
+                    @click="switchTab('settings')"
+                    :class="[
+                      'w-full text-left px-3 py-2 rounded text-xs transition-all flex items-center space-x-2',
+                      currentTab === 'settings'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'hover:bg-gray-50 text-gray-700',
+                    ]"
+                  >
+                    <span class="text-xs">⚙️</span>
+                    <span>设置</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </header>
 
-        <!-- 快速记录 - 紧凑版 -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
-          <h3
-            class="font-bold text-gray-900 mb-2 text-xs flex items-center justify-center"
-          >
-            <span class="text-sm mr-1">🚀</span>
-            快速记录
-          </h3>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              @click="quickRecord(true)"
-              class="bg-red-600 hover:bg-red-700 py-2 px-2 rounded-lg font-semibold transition-all text-xs"
-            >
-              <div class="text-base mb-0.5">😔</div>
-              <div>厕所满了</div>
-            </button>
-            <button
-              @click="quickRecord(false)"
-              class="bg-green-600 hover:bg-green-700 py-2 px-2 rounded-lg font-semibold transition-all text-xs"
-            >
-              <div class="text-base mb-0.5">😊</div>
-              <div>有空位</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- 内容区域 -->
-        <main>
+        <!-- 内容区域 - 无额外边距 -->
+        <main class="p-3">
+          <!-- 预测视图 - 默认显示 -->
           <div v-if="currentTab === 'predict'">
             <PredictionView
               ref="predictionViewRef"
               :current-location="currentLocation"
+              @quick-record="quickRecord"
             />
           </div>
 
-          <div v-if="currentTab === 'record'" class="space-y-3">
+          <!-- 记录视图 -->
+          <div v-if="currentTab === 'record'">
             <div
               class="bg-white rounded-xl shadow-sm border border-gray-200 p-3"
             >
               <h3
                 class="text-sm font-bold text-gray-900 mb-3 flex items-center"
               >
-                <span class="text-base mr-1">📝</span>
+                <span class="text-base mr-2">📝</span>
                 详细记录
               </h3>
               <RecordForm
@@ -446,6 +467,7 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <!-- 设置视图 -->
           <div v-if="currentTab === 'settings'" class="space-y-3">
             <!-- 位置管理 -->
             <div
@@ -454,7 +476,7 @@ onUnmounted(() => {
               <h3
                 class="text-sm font-bold text-gray-900 mb-3 flex items-center"
               >
-                <span class="text-base mr-1">📍</span>
+                <span class="text-base mr-2">📍</span>
                 位置管理
               </h3>
               <LocationSetup
@@ -463,14 +485,14 @@ onUnmounted(() => {
               />
             </div>
 
-            <!-- 使用统计 - 简化版 -->
+            <!-- 使用统计 -->
             <div
               class="bg-white rounded-xl shadow-sm border border-gray-200 p-3"
             >
               <h3
                 class="text-sm font-bold text-gray-900 mb-3 flex items-center"
               >
-                <span class="text-base mr-1">📊</span>
+                <span class="text-base mr-2">📊</span>
                 数据统计
               </h3>
 
@@ -500,7 +522,7 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- 精度等级 -->
+              <!-- 精度等级说明 -->
               <div class="bg-gray-50 rounded-lg p-2">
                 <div class="text-xs font-medium text-gray-900 mb-2">
                   精度等级
@@ -545,8 +567,8 @@ onUnmounted(() => {
         </main>
 
         <!-- 极简底部信息 -->
-        <footer class="text-center">
-          <div class="text-xs text-gray-500 py-1">🔒 本地存储 · v0.2.0</div>
+        <footer class="text-center pb-2">
+          <div class="text-xs text-gray-500">🔒 所有数据本地存储 · v0.2.1</div>
         </footer>
       </div>
     </div>
@@ -575,7 +597,7 @@ onUnmounted(() => {
 
 /* 滚动条样式优化 */
 .popup-container::-webkit-scrollbar {
-  width: 4px;
+  width: 0px;
 }
 
 .popup-container::-webkit-scrollbar-track {
@@ -611,6 +633,7 @@ select {
   white-space: nowrap;
 }
 
+/* 下拉菜单点击外部关闭 */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -624,5 +647,10 @@ select {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
+}
+
+/* 确保下拉菜单在合适的层级 */
+.relative {
+  position: relative;
 }
 </style>
